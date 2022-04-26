@@ -100,6 +100,19 @@ def random_shift(scale=1.0):
     return rng.normal(g.real(grid), sigma=scale)
 
 
+# I'll finish this up
+# def staple(links, mu, nu):
+#     U_nu_x_plus_mu = g.cshift(links[nu], mu, 1)
+#     U_mu_x_plus_nu = g.cshift(links[mu], nu, 1)
+#     U_nu_x_minus_nu = g.cshift(links[nu], nu, -1)
+#     return (U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu)
+#             * g.adj(g.cshift(U_nu_x_minus_nu, nu, 1))
+#             +
+#             g.cshift(U_nu_x_plus_mu, nu, -1) * g.cshift(links[mu], nu, -1) *
+            
+
+
+
 # levi3 = three_levi()
 # for idx, val in  levi3[mu]:
 #     nu, rho, sig = idx[0], idx[1], idx[2]
