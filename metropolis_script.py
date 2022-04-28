@@ -28,6 +28,12 @@ def sign(x):
     the_sign = g.where(check, plus, minu)
     return the_sign
 
+def make_eslash(e):
+    eslash = [g.mspin(grid) for mu in range(4)]
+    for mu in range(4):
+        for a in range(4):
+            eslash[mu] += g.gamma[a].tensor()*e[mu][a]
+    return eslash
 
 
 def compute_action(link, e):
@@ -39,10 +45,11 @@ def compute_action(link, e):
     vol[:] = 0
     GB = g.real(grid)
     GB[:] = 0
-    eslash = [g.mspin(grid) for mu in range(4)]
-    for mu in range(4):
-        for a in range(4):
-            eslash[mu] += g.gamma[a].tensor()*e[mu][a]
+    eslash = make_eslash(e)
+    # eslash = [g.mspin(grid) for mu in range(4)]
+    # for mu in range(4):
+    #     for a in range(4):
+    #         eslash[mu] += g.gamma[a].tensor()*e[mu][a]
     for idx, val in levi.items():
 #         print(idx)
         mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
@@ -72,18 +79,18 @@ def make_levi():
                 arr[(i,j,k,l)] = -1
     return arr
 
-# def three_levi():
-#     arr = {i:dict() for i in range(4)}
-#     for i,j,k,l in it.product(range(4), repeat=4):
-#         prod = (i-j)*(i-k)*(i-l)*(j-k)*(j-l)*(k-l)
-#         if prod == 0:
-#             continue
-#         else:
-#             if prod > 0:
-#                 arr[i][(j,k,l)] = 1
-#             else:
-#                 arr[i][(j,k,l)] = -1
-#     return arr
+def three_levi():
+    arr = {i:dict() for i in range(4)}
+    for i,j,k,l in it.product(range(4), repeat=4):
+        prod = (i-j)*(i-k)*(i-l)*(j-k)*(j-l)*(k-l)
+        if prod == 0:
+            continue
+        else:
+            if prod > 0:
+                arr[i][(j,k,l)] = 1
+            else:
+                arr[i][(j,k,l)] = -1
+    return arr
 
 
 def random_links(scale=1.0):
@@ -101,16 +108,60 @@ def random_shift(scale=1.0):
 
 
 # I'll finish this up
-# def staple(links, mu, nu):
-#     U_nu_x_plus_mu = g.cshift(links[nu], mu, 1)
-#     U_mu_x_plus_nu = g.cshift(links[mu], nu, 1)
-#     U_nu_x_minus_nu = g.cshift(links[nu], nu, -1)
-#     return (U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu)
-#             * g.adj(g.cshift(U_nu_x_minus_nu, nu, 1))
-#             +
-#             g.cshift(U_nu_x_plus_mu, nu, -1) * g.cshift(links[mu], nu, -1) *
-            
+def staple(links, mu, eslash):
+    U_mu_x_plus_nu = g.cshift(links[mu], nu, 1)
+    Emu = g.mspin(grid)
+    Emu[:] = 0
+    for (nu,rho,sig), val in levi3[mu].items():
+        e_rho_x_plus_mu = g.cshift(eslash[rho], mu, 1)
+        e_sig_x_plus_mu = g.cshift(eslash[sig], mu, 1)
+        e_rho_x_plus_nu = g.cshift(eslash[rho], nu, 1)
+        e_sig_x_plus_nu = g.cshift(eslash[sig], nu, 1)
+        e_rho_x_minus_nu = g.cshift(eslash[rho], nu, -1)
+        e_sig_x_minus_nu = g.cshift(eslash[sig], nu, -1)
+        
+        U_nu_x_plus_mu = g.cshift(links[nu], mu, 1)
+        U_nu_x_minus_nu = g.cshift(links[nu], nu, -1)
 
+        one = (U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
+               g.adj(links[nu]) * eslash[rho] * eslash[sig] *
+               g.gamma[5])
+        two = (g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
+               g.adj(U_mu_x_minus_nu) * U_nu_x_minus_nu *
+               eslash[rho] * eslash[sig] * g.gamma[5])
+        three = (e_rho_x_plus_mu * e_sig_x_plus_mu *
+                 g.gamma[5] * U_nu_x_plus_mu *
+                 g.adj(U_mu_x_minus_nu) * g.adj(links[nu]))
+        four = (e_rho_x_plus_mu * e_sig_x_plus_mu *
+                g.gamma[5] * g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
+                g.adj(U_mu_x_minus_nu) * U_nu_x_minus_nu)
+        five = (U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
+                e_rho_x_plus_nu * e_sig_x_plus_nu *
+                g.gamma[5] * g.adj(links[nu]))
+        six = (g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) * g.adj(U_mu_x_minus_nu) *
+               e_rho_x_minus_nu * e_sig_x_minus_nu *
+               g.gamma[5] * U_nu_x_minus_nu)
+        seven = (U_nu_x_plus_mu * g.cshift(e_rho_x_plus_mu, nu, 1) *
+                 g.cshift(e_sig_x_plus_mu, nu, 1) * g.gamma[5] *
+                 g.adj(U_mu_x_plus_nu) * g.adj(links[nu]))
+        eight = (g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
+                 g.cshift(e_rho_x_plus_mu, nu, -1) *
+                 g.cshift(e_sig_x_plus_mu, nu, -1) * g.gamma[5] *
+                 g.adj(U_mu_x_minus_nu) * U_nu_x_minus_nu)
+        Emu += (one - two + three - four + five - six + seven - eight)
+    return 0.125 * Emu
+        
+            
+def compute_action2(links, e, mu):
+    R = g.real(grid)
+    R[:] = 0
+    Rsq = g.real(grid)
+    Rsq[:] = 0
+    vol = g.real(grid)
+    vol[:] = 0
+    eslash = make_eslash(e)
+    st = staple(links, mu, eslash)
+    R = g.trace(links[mu] * st) - g.trace(g.adj(links[mu] * st))
 
 
 # levi3 = three_levi()
