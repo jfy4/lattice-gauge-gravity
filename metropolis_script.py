@@ -131,7 +131,7 @@ def staple(links, eslash, mu):
                eslash[rho] * eslash[sig] * g.gamma[5])
         three = (e_rho_x_plus_mu * e_sig_x_plus_mu *
                  g.gamma[5] * U_nu_x_plus_mu *
-                 g.adj(g.cshift(links[mu], nu, -1)) * g.adj(links[nu]))
+                 g.adj(U_mu_x_plus_nu) * g.adj(links[nu]))
         four = (e_rho_x_plus_mu * e_sig_x_plus_mu *
                 g.gamma[5] * g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
                 g.adj(g.cshift(links[mu], nu, -1)) * U_nu_x_minus_nu)
@@ -198,7 +198,7 @@ def update_links(links, e, mask):
         V = random_links(scale=0.1)
         # g.message(V)
         V = g.where(mask, V, V_eye)
-        links_prime = links # copy links?
+        links_prime = links[:] # copy links?
         # g.message(links_prime)
         links_prime[mu] = g.eval(V * links[mu])
         # action_prime = compute_action(links_prime, e)
@@ -220,7 +220,7 @@ def update_tetrads(links, e, mask):
             ii_eye = g.identity(e[mu][a])
             ii = random_shift(scale=0.1)
             ii = g.where(mask, ii, ii_eye)
-            e_prime = e
+            e_prime = e[:]
             e_prime[mu][a] = g.eval(ii + e[mu][a])
             # action_prime = compute_action(links, e_prime)
             action_prime = compute_tet_action(links, e_prime, mu)
@@ -252,7 +252,7 @@ if __name__ == "__main__":
     lam = 1
     alpha = 1
     beta = 1
-    nswp = 5
+    nswp = 10
     
     # make the tetrads
     e = [[rng.normal(g.real(grid)) for a in range(4)] for mu in range(4)]
@@ -291,13 +291,16 @@ if __name__ == "__main__":
     # g.message(e[0][0])
     
     for i in range(nswp):
+        plaq = g.qcd.gauge.plaquette(U)
+        R_2x1 = g.qcd.gauge.rectangle(U, 2, 1)
+        the_det = np.real(np.mean(det(e)[:]))
+        g.message(f"Metropolis {i} has det = {the_det}, P = {plaq}, R_2x1 = {R_2x1}")
         for cb in [g.even, g.odd]:
             mask[:] = 0
             mask_rb.checkerboard(cb)
             g.set_checkerboard(mask, mask_rb)
             update(U, e, mask)
             
-    g.message(e[0][0])
         
             
 # In[ ]:
