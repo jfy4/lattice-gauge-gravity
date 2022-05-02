@@ -31,6 +31,8 @@ def sign(x):
 def make_eslash(e):
     eslash = [g.mspin(grid) for mu in range(4)]
     for mu in range(4):
+        eslash[mu][:] = 0
+    for mu in range(4):
         for a in range(4):
             eslash[mu] += g.gamma[a].tensor()*e[mu][a]
     return eslash
