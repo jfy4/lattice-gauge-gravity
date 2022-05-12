@@ -340,13 +340,13 @@ if __name__ == "__main__":
     mask_rb[:] = 1
     mask = g.complex(grid)
 
-    act2 = g.eval(compute_action_check(U, e))
+    act2 = np.sum(g.eval(compute_action_check(U, e))[:])
     # act2 = g.eval(compute_action_check(U, e))[0,0,0,0]
     act1 = g.real(grid)
     act1[:] = 0
     for mu in range(4):
-        act1 += g.eval(2 * compute_link_action(U, e, mu))
-    act1 = act1
+        act1 += g.eval(compute_link_action(U, e, mu))
+    act1 = np.sum(act1[:])
     # act1 = act1[0,0,0,0]
     e00 = e[0][0][0,0,0,0]
     GGGG = g.qcd.gauge.field_strength(U,0,1)[0,0,0,0][0,1]
