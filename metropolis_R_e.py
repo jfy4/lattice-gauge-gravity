@@ -238,6 +238,15 @@ def compute_tet_action(links, e, mu):
 #     nu, rho, sig = idx[0], idx[1], idx[2]
 #     g.trace(g.gamma[5] * g.qcd.gauge.field_strength(link, mu, nu) * eslash[rho] * eslash[sig])
 
+def compute_total_action(links, e):
+    want = g.real(grid)
+    want[:] = 0
+    for mu in range(4):
+        # A = compute_link_action(links, e, mu)
+        B = compute_tet_action(links, e, mu)
+        want += B
+    return want
+
 
 def update_links(links, e, mask):
     for mu in range(4):
@@ -303,7 +312,7 @@ if __name__ == "__main__":
     lam = 1
     alpha = 1
     beta = 1
-    nswp = 100
+    nswp = 10000
     
     # make the tetrads
     e = [[rng.normal(g.real(grid)) for a in range(4)] for mu in range(4)]
@@ -361,6 +370,7 @@ if __name__ == "__main__":
         plaq = g.qcd.gauge.plaquette(U)
         R_2x1 = g.qcd.gauge.rectangle(U, 2, 1)
         the_det = np.real(np.mean(det(e)[:]))
+        act = np.real(np.sum(g.eval(compute_total_action(U, e))[:]) / L**4)
         # act2 = np.sum(g.eval(compute_action_check(U, e))[:])
         # # act2 = g.eval(compute_action_check(U, e))[0,0,0,0]
         # act1 = g.real(grid)
@@ -368,7 +378,7 @@ if __name__ == "__main__":
         # for mu in range(4):
         #     act1 += g.eval(compute_link_action(U, e, mu))
         # act1 = np.sum(act1[:])
-        g.message(f"Metropolis {i} has det = {the_det}, P = {plaq}, R_2x1 = {R_2x1}")
+        g.message(f"Metropolis {i} has det = {the_det}, P = {plaq}, R_2x1 = {R_2x1}, act = {act}")
         # act2 = np.mean(g.eval(compute_action_check(U, e))[:])
         # act1 = g.real(grid)
         # act1[:] = 0
