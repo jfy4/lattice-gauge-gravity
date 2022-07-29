@@ -7,6 +7,7 @@
 import gpt as g
 import itertools as it
 import numpy as np
+import copy
 
 def det(e):
     want = g.lattice(e[0][0])
@@ -169,33 +170,33 @@ def staple(links, e, mu):
                  U_nu_x_minus_nu) * g.cshift(sign_x_plus_mu, nu, -1)
         Emu += 0.125 * val * (one - two + three - four + five - six + seven - eight)
         # Emutilde part
-        one = g.eval(eslash[rho] * eslash[sig] * g.gamma[5] *
-               links[nu] * U_mu_x_plus_nu * g.adj(U_nu_x_plus_mu)) * sign(det(e))
-        two = g.eval(eslash[rho] * eslash[sig] * g.gamma[5] *
-               g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
-               g.cshift(U_nu_x_plus_mu, nu, -1)) * sign(det(e))
-        three = g.eval(links[nu] * U_mu_x_plus_nu * g.adj(U_nu_x_plus_mu) *
-                 e_rho_x_plus_mu * e_sig_x_plus_mu
-                 * g.gamma[5]) * sign_x_plus_mu
-        four = g.eval(g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
-                g.cshift(U_nu_x_plus_mu, nu, -1) * e_rho_x_plus_mu *
-                e_sig_x_plus_mu * g.gamma[5]) * sign_x_plus_mu
-        five = g.eval(links[nu] * e_rho_x_plus_nu * e_sig_x_plus_nu
-                * g.gamma[5] * U_mu_x_plus_nu *
-                g.adj(U_nu_x_plus_mu)) * sign_x_plus_nu
-        six = g.eval(g.adj(U_nu_x_minus_nu) * e_rho_x_minus_nu *
-               e_sig_x_minus_nu * g.gamma[5] * g.cshift(links[mu], nu, -1) *
-               g.cshift(U_nu_x_plus_mu, nu, -1)) * sign_x_minus_nu
-        seven = g.eval(links[nu] * U_mu_x_plus_nu * g.cshift(e_rho_x_plus_nu, mu, 1) *
-                 g.cshift(e_sig_x_plus_nu, mu, 1) * g.gamma[5] *
-                 g.adj(U_nu_x_plus_mu)) * g.cshift(sign_x_plus_mu, nu, 1)
-        eight = g.eval(g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
-                 g.cshift(e_rho_x_plus_mu, nu, -1) *
-                 g.cshift(e_sig_x_plus_mu, nu, -1) * g.gamma[5] *
-                 g.cshift(U_nu_x_plus_mu, nu, -1)) * g.cshift(sign_x_plus_mu, nu, -1)
-        Emutilde += 0.125 * val * (- one + two - three + four - five + six - seven + eight)
-    return (Emu, Emutilde)
-    # return Emu
+        # one = g.eval(eslash[rho] * eslash[sig] * g.gamma[5] *
+        #        links[nu] * U_mu_x_plus_nu * g.adj(U_nu_x_plus_mu)) * sign(det(e))
+        # two = g.eval(eslash[rho] * eslash[sig] * g.gamma[5] *
+        #        g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
+        #        g.cshift(U_nu_x_plus_mu, nu, -1)) * sign(det(e))
+        # three = g.eval(links[nu] * U_mu_x_plus_nu * g.adj(U_nu_x_plus_mu) *
+        #          e_rho_x_plus_mu * e_sig_x_plus_mu
+        #          * g.gamma[5]) * sign_x_plus_mu
+        # four = g.eval(g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
+        #         g.cshift(U_nu_x_plus_mu, nu, -1) * e_rho_x_plus_mu *
+        #         e_sig_x_plus_mu * g.gamma[5]) * sign_x_plus_mu
+        # five = g.eval(links[nu] * e_rho_x_plus_nu * e_sig_x_plus_nu
+        #         * g.gamma[5] * U_mu_x_plus_nu *
+        #         g.adj(U_nu_x_plus_mu)) * sign_x_plus_nu
+        # six = g.eval(g.adj(U_nu_x_minus_nu) * e_rho_x_minus_nu *
+        #        e_sig_x_minus_nu * g.gamma[5] * g.cshift(links[mu], nu, -1) *
+        #        g.cshift(U_nu_x_plus_mu, nu, -1)) * sign_x_minus_nu
+        # seven = g.eval(links[nu] * U_mu_x_plus_nu * g.cshift(e_rho_x_plus_nu, mu, 1) *
+        #          g.cshift(e_sig_x_plus_nu, mu, 1) * g.gamma[5] *
+        #          g.adj(U_nu_x_plus_mu)) * g.cshift(sign_x_plus_mu, nu, 1)
+        # eight = g.eval(g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
+        #          g.cshift(e_rho_x_plus_mu, nu, -1) *
+        #          g.cshift(e_sig_x_plus_mu, nu, -1) * g.gamma[5] *
+        #          g.cshift(U_nu_x_plus_mu, nu, -1)) * g.cshift(sign_x_plus_mu, nu, -1)
+        # Emutilde += 0.125 * val * (- one + two - three + four - five + six - seven + eight)
+    # return (Emu, Emutilde)
+    return Emu
 
 
 def eenv(links, eslash, mu):
@@ -215,11 +216,12 @@ def compute_link_action(links, e, mu):
     R = g.real(grid)
     R[:] = 0
     # eslash = make_eslash(e)
-    E, Etil = staple(links, e, mu)
-    R = g.trace(links[mu] * E) + g.trace(Etil * g.adj(links[mu]))
-    # R = g.trace(links[mu] * E)
+    # E, Etil = staple(links, e, mu)
+    E = staple(links, e, mu)
+    # R = g.trace(links[mu] * E) + g.trace(Etil * g.adj(links[mu]))
+    R = g.trace(links[mu] * E)
     # R = g.trace(Etil * g.adj(links[mu]))
-    return (-kappa / 32) * R
+    return (-kappa / 16) * R
     # return R
 
 
@@ -258,18 +260,23 @@ def update_links(links, e, mask):
         V = random_links(scale=0.1)
         # g.message(V)
         V = g.where(mask, V, V_eye)
-        links_prime = links[:] # copy links?
+        lo = links[mu]
+        # links_prime = links.copy() # copy links?
         # g.message(links_prime)
-        links_prime[mu] = g.eval(V * links[mu])
+        lp = g.eval(V * lo)
+        links[mu] = g.eval(V * lo)
+        # links_prime[mu] = g.eval(V * links[mu])
         # action_prime = compute_action(links_prime, e)
-        action_prime = compute_link_action(links_prime, e, mu)
+        action_prime = compute_link_action(links, e, mu)
         prob = g.component.exp(action - action_prime)
         # g.message(prob)
         rn = g.lattice(prob)
         rng.uniform_real(rn)
         accept = rn < prob
         accept *= mask
-        links[mu] @= g.where(accept, links_prime[mu], links[mu])
+        links[mu] @= g.where(accept, lp, lo)
+        # print(links[mu][0,0,0,0], lo[0,0,0,0], lp[0,0,0,0])
+        # print('==================')
         
         
 def update_tetrads(links, e, mask):
@@ -278,23 +285,35 @@ def update_tetrads(links, e, mask):
             # action = compute_action(links, e)
             action = compute_tet_action(links, e, mu)
             ii_eye = g.identity(e[mu][a])
-            ii = random_shift(scale=0.1)
+            ii = random_shift(scale=1.)
             ii = g.where(mask, ii, ii_eye)
-            e_prime = e[:]
-            e_prime[mu][a] = g.eval(ii + e[mu][a])
+            eo = e[mu][a]
+            # print(eo[0,0,0,0])
+            ep = g.eval(ii + eo)
+            # print(ep[0,0,0,0])
+            # print(ep, e[mu][a])
+            # assert False
+            # e_prime = 1
+            e[mu][a] = g.eval(ii + eo)
+            # print(eo[0,0,0,0], e[mu][a][0,0,0,0])
+            # print(e[mu][a][0,0,0,0], e_prime[mu][a][0,0,0,0])
             # action_prime = compute_action(links, e_prime)
-            action_prime = compute_tet_action(links, e_prime, mu)
+            action_prime = compute_tet_action(links, e, mu)
+            # print(np.sum(g.eval(action_prime)[:]), np.sum(g.eval(action)[:]))
             prob = g.component.exp(action - action_prime)
             rn = g.lattice(prob)
             rng.uniform_real(rn)
             accept = rn < prob
             accept *= mask
-            e[mu][a] @= g.where(accept, e_prime[mu][a], e[mu][a])
+            e[mu][a] @= g.where(accept, ep, eo)
+            # print(e[mu][a][0,0,0,0], eo[0,0,0,0], ep[0,0,0,0])
+            # print('==================')
+            
             
             
 def update(links, e, mask):
     update_links(links, e, mask)
-    update_tetrads(links, e, mask)
+    # update_tetrads(links, e, mask)
 
 
 # In[4]:
@@ -308,10 +327,10 @@ if __name__ == "__main__":
     rng = g.random("seed string")   
     
     # parameters
-    kappa = 1
-    lam = 1
-    alpha = 1
-    beta = 1
+    kappa = 0.01
+    lam = 0.0
+    # alpha = 1
+    # beta = 1
     nswp = 10000
     
     # make the tetrads
