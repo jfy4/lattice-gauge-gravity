@@ -288,6 +288,7 @@ def update_tetrads(links, e, mask):
             ii = random_shift(scale=1.)
             ii = g.where(mask, ii, ii_eye)
             eo = e[mu][a]
+            dete = det(e)
             # print(eo[0,0,0,0])
             ep = g.eval(ii + eo)
             # print(ep[0,0,0,0])
@@ -295,25 +296,28 @@ def update_tetrads(links, e, mask):
             # assert False
             # e_prime = 1
             e[mu][a] = g.eval(ii + eo)
+            detep = det(e)
             # print(eo[0,0,0,0], e[mu][a][0,0,0,0])
             # print(e[mu][a][0,0,0,0], e_prime[mu][a][0,0,0,0])
             # action_prime = compute_action(links, e_prime)
             action_prime = compute_tet_action(links, e, mu)
             # print(np.sum(g.eval(action_prime)[:]), np.sum(g.eval(action)[:]))
-            prob = g.component.exp(action - action_prime)
+            meas = g.component.pow(K)(g.component.abs(detep) * g.component.inv(g.component.abs(dete)))
+            prob = g.eval(g.component.exp(action - action_prime) * meas)
             rn = g.lattice(prob)
             rng.uniform_real(rn)
             accept = rn < prob
             accept *= mask
             e[mu][a] @= g.where(accept, ep, eo)
             # print(e[mu][a][0,0,0,0], eo[0,0,0,0], ep[0,0,0,0])
+            # print(np.sum(g.eval(compute_tet_action(links, e, mu))[:]))
             # print('==================')
             
             
             
 def update(links, e, mask):
     update_links(links, e, mask)
-    # update_tetrads(links, e, mask)
+    update_tetrads(links, e, mask)
 
 
 # In[4]:
@@ -327,11 +331,12 @@ if __name__ == "__main__":
     rng = g.random("seed string")   
     
     # parameters
-    kappa = 0.01
-    lam = 0.0
+    kappa = 5.
+    lam = 5.
+    K = -1.
     # alpha = 1
     # beta = 1
-    nswp = 10000
+    nswp = 2000
     
     # make the tetrads
     e = [[rng.normal(g.real(grid)) for a in range(4)] for mu in range(4)]
@@ -385,11 +390,13 @@ if __name__ == "__main__":
 #     g.message(f"action1 = {act1}, action2 = {act2}")
     # assert False
     # g.message(e[0][0])
+    meas = list()
     for i in range(nswp):
         plaq = g.qcd.gauge.plaquette(U)
         R_2x1 = g.qcd.gauge.rectangle(U, 2, 1)
         the_det = np.real(np.mean(det(e)[:]))
         act = np.real(np.sum(g.eval(compute_total_action(U, e))[:]) / L**4)
+        meas.append([plaq, R_2x1,the_det,act])
         # act2 = np.sum(g.eval(compute_action_check(U, e))[:])
         # # act2 = g.eval(compute_action_check(U, e))[0,0,0,0]
         # act1 = g.real(grid)
@@ -410,7 +417,8 @@ if __name__ == "__main__":
             mask_rb.checkerboard(cb)
             g.set_checkerboard(mask, mask_rb)
             update(U, e, mask)
-            
+    
+    np.save("measure_K" + str(K) + "_kappa" + str(kappa) + "_lam" + str(lam) + ".npy", meas)
         
             
 # In[ ]:
