@@ -336,7 +336,7 @@ if __name__ == "__main__":
     K = -1.
     # alpha = 1
     # beta = 1
-    nswp = 2000
+    nswp = 10
     
     # make the tetrads
     e = [[rng.normal(g.real(grid)) for a in range(4)] for mu in range(4)]
