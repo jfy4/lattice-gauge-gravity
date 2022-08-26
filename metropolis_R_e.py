@@ -301,7 +301,7 @@ def update_tetrads(links, e, mask):
             # print(e[mu][a][0,0,0,0], e_prime[mu][a][0,0,0,0])
             # action_prime = compute_action(links, e_prime)
             action_prime = compute_tet_action(links, e, mu)
-            # print(np.sum(g.eval(action_prime)[:]), np.sum(g.eval(action)[:]))
+            print(np.sum(g.eval(action_prime)[:]), np.sum(g.eval(action)[:]))
             meas = g.component.pow(K)(g.component.abs(detep) * g.component.inv(g.component.abs(dete)))
             prob = g.eval(g.component.exp(action - action_prime) * meas)
             rn = g.lattice(prob)
@@ -336,7 +336,7 @@ if __name__ == "__main__":
     K = -1.
     # alpha = 1
     # beta = 1
-    nswp = 10
+    nswp = 1
     
     # make the tetrads
     e = [[rng.normal(g.real(grid)) for a in range(4)] for mu in range(4)]
