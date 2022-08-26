@@ -43,6 +43,44 @@ class Simulation:
         V = g.matrix.exp(lnV)
         return V
 
+    def compute_action_check(self,):
+        R = g.real(self.grid)
+        R[:] = 0
+        # Rsq = g.real(grid)
+        # Rsq[:] = 0
+        vol = g.real(self.grid)
+        vol[:] = 0
+        # GB = g.real(grid)
+        # GB[:] = 0
+        eslash = self.make_eslash()
+        # eslash = [g.mspin(grid) for mu in range(4)]
+        # for mu in range(4):
+        #     for a in range(4):
+        #         eslash[mu] += g.gamma[a].tensor()*e[mu][a]
+        for idx, val in levi.items():
+            # print(idx, val)
+            mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
+            Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
+            # Grhosig = g.qcd.gauge.field_strength(link, rho, sig)
+            R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
+            # R += r
+            vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig]) * val
+            #     GB += g.trace(g.gamma[5] * Gmunu * Grhosig) * val
+        Rsq = R * R # g.component.pow(2)(R)
+        # action = sign(det(e)) * ((-1) * (kappa / 16) * R +
+        #                                (lam / 96) * vol +
+        #                                alpha * Rsq +
+        #                                beta * GB)
+        # volp = np.mean(g.eval(vol)[:])
+        # g.message(f"vol = {volp}")
+        dete = det(self.e)
+        action = (sign(dete) * ((-1) * (self.kappa / 16) * R
+                                + (self.lam / 96) * vol
+                                + self.alpha * Rsq * g.component.inv(dete) / 8))
+        # action = R * sign(det(e))
+        return action
+
+    
     def staple(self, mu):
         Emu = g.mspin(self.grid)
         Emu[:] = 0
@@ -255,10 +293,12 @@ class Simulation:
         self.update_links()
         self.update_tetrads()
 
-    def run(self, nswps, kappa, lam, K):
+    def run(self, nswps, kappa, lam, alpha, K, crosscheck=False):
+        self.crosscheck = crosscheck
         self.kappa = kappa
         self.lam = lam
         self.K = K
+        self.alpha = alpha
         # need to do this masking for even odd update
         grid_eo = self.grid.checkerboarded(g.redblack)
         self.mask_rb = g.complex(grid_eo)
@@ -284,6 +324,9 @@ class Simulation:
         #     act1 += g.eval(compute_link_action(U, e, mu))
         # act1 = np.sum(act1[:])
         g.message(f"Metropolis {swp} has det = {the_det}, P = {plaq}, R_2x1 = {R_2x1}, act = {act}")
+        if self.crosscheck:
+            check_act = np.real(np.sum(g.eval(self.compute_action_check())[:]) / self.L**4)
+            g.message(f"Cross check action = {check_act}")
         # act2 = np.mean(g.eval(compute_action_check(U, e))[:])
         # act1 = g.real(grid)
         # act1[:] = 0
@@ -324,39 +367,6 @@ def sign(x):
     return the_sign
 
 
-    def compute_action_check(self,):
-        R = g.real(self.grid)
-        R[:] = 0
-        # Rsq = g.real(grid)
-        # Rsq[:] = 0
-        vol = g.real(self.grid)
-        vol[:] = 0
-        # GB = g.real(grid)
-        # GB[:] = 0
-        eslash = self.make_eslash()
-        # eslash = [g.mspin(grid) for mu in range(4)]
-        # for mu in range(4):
-        #     for a in range(4):
-        #         eslash[mu] += g.gamma[a].tensor()*e[mu][a]
-        for idx, val in levi.items():
-            # print(idx, val)
-            mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
-            Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
-            # Grhosig = g.qcd.gauge.field_strength(link, rho, sig)
-            R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
-            # R += r
-            vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig]) * val
-            #     GB += g.trace(g.gamma[5] * Gmunu * Grhosig) * val
-            # Rsq = g.component.pow(2)(R)
-            # action = sign(det(e)) * ((-1) * (kappa / 16) * R +
-            #                                (lam / 96) * vol +
-            #                                alpha * Rsq +
-            #                                beta * GB)
-            # volp = np.mean(g.eval(vol)[:])
-            # g.message(f"vol = {volp}")
-        action = sign(det(self.e)) * ((-1) * (kappa / 16) * R) + (lam / 96) * vol)
-        # action = R * sign(det(e))
-        return action
 
 def make_levi():
     arr = dict()
@@ -393,8 +403,10 @@ if __name__ == "__main__":
     # parameters
     kappa = 5.
     lam = 5.
-    K = -1.
+    K = 0
+    alpha = 0
     L = 4
+    nswps = 1
     # alpha = 1
     # beta = 1
 
@@ -403,7 +415,7 @@ if __name__ == "__main__":
     levi3 = three_levi()
 
     lattice = Simulation(L)
-    lattice.run(nswps, kappa, lam, K)
+    lattice.run(nswps, kappa, lam, alpha, K, crosscheck=True)
     
     
     np.save("measure_nswps" + str(nswps) + "_K" + str(K) +
