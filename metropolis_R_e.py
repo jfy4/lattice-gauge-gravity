@@ -18,9 +18,9 @@ class Simulation:
         g.message(self.grid)
         self.rng = g.random("seed string") # initialize random seed
 
-        self.make_Us() # creates the Us
         # make the tetrads
         self.e = [[self.rng.normal(g.real(self.grid)) for a in range(4)] for mu in range(4)]
+        self.make_Us() # creates the Us
         
 
     def random_shift(self, scale=1.0):
