@@ -12,48 +12,54 @@ import copy
 
 class Simulation:
 
-    def __init__(self,):
-        pass
-        L = 4
-        self.grid = g.grid([L]*4, g.double)
+    def __init__(self, L):
+        self.L = L # symmetric lattice
+        self.grid = g.grid([self.L]*4, g.double) # make the lattice
         g.message(self.grid)
-        self.rng = g.random("seed string")   
+        self.rng = g.random("seed string") # initialize random seed
 
-    def random_shift(scale=1.0):
-        return rng.normal(g.real(grid), sigma=scale)
+        self.make_Us() # creates the Us
+        # make the tetrads
+        self.e = [[self.rng.normal(g.real(self.grid)) for a in range(4)] for mu in range(4)]
+        
+
+    def random_shift(self, scale=1.0):
+        return self.rng.normal(g.real(self.grid), sigma=scale)
     
     def make_eslash(self,):
-        self.eslash = [g.mspin(grid) for mu in range(4)]
+        eslash = [g.mspin(self.grid) for mu in range(4)]
         for mu in range(4):
-            self.eslash[mu][:] = 0
+            eslash[mu][:] = 0
         for mu in range(4):
             for a in range(4):
-                self.eslash[mu] += g.gamma[a].tensor() * self.e[mu][a]
-        # return eslash
+                eslash[mu] += g.gamma[a].tensor() * self.e[mu][a]
+        return eslash
 
-    def random_links(scale=1.0):
-        lnV = g.mspin(grid) 
+    def random_links(self, scale=1.0):
+        Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
+                  [a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
+        lnV = g.mspin(self.grid) 
         lnV[:] = 0
         for a in range(0, 4):
             for b in range(0, 4):
-                lnV += Ji2[a][b] * rng.normal(g.complex(grid), sigma=scale)
-        V = g.mspin(grid)
+                lnV += Ji2[a][b] * self.rng.normal(g.complex(self.grid), sigma=scale)
+        V = g.mspin(self.grid)
         V = g.matrix.exp(lnV)
         return V
 
-    def staple(links, e, mu):
-        Emu = g.mspin(grid)
+    def staple(self, mu):
+        Emu = g.mspin(self.grid)
         Emu[:] = 0
-        Emutilde = g.mspin(grid)
+        Emutilde = g.mspin(self.grid)
         Emutilde[:] = 0
-        eslash = make_eslash(e)
-        sign_x_plus_mu = g.cshift(sign(det(e)), mu, 1)
+        eslash = self.make_eslash()
+        sign_x_plus_mu = g.cshift(sign(det(self.e)), mu, 1)
         # print(eslash[mu])
         # assert False
         for (nu,rho,sig), val in levi3[mu].items():
             # print(nu,rho,sig, val)
-            sign_x_minus_nu = g.cshift(sign(det(e)), nu, -1)
-            sign_x_plus_nu = g.cshift(sign(det(e)), nu, 1)
+            sign_x_minus_nu = g.cshift(sign(det(self.e)), nu, -1)
+            sign_x_plus_nu = g.cshift(sign(det(self.e)), nu, 1)
             
             e_rho_x_plus_mu = g.cshift(eslash[rho], mu, 1)
             e_sig_x_plus_mu = g.cshift(eslash[sig], mu, 1)
@@ -62,38 +68,38 @@ class Simulation:
             e_rho_x_minus_nu = g.cshift(eslash[rho], nu, -1)
             e_sig_x_minus_nu = g.cshift(eslash[sig], nu, -1)
             
-            U_nu_x_plus_mu = g.cshift(links[nu], mu, 1)
-            U_nu_x_minus_nu = g.cshift(links[nu], nu, -1)
-            U_mu_x_plus_nu = g.cshift(links[mu], nu, 1)
+            U_nu_x_plus_mu = g.cshift(self.U[nu], mu, 1)
+            U_nu_x_minus_nu = g.cshift(self.U[nu], nu, -1)
+            U_mu_x_plus_nu = g.cshift(self.U[mu], nu, 1)
             
             one = g.eval(U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
-                         g.adj(links[nu]) * eslash[rho] * eslash[sig] *
-                         g.gamma[5]) * sign(det(e))
+                         g.adj(self.U[nu]) * eslash[rho] * eslash[sig] *
+                         g.gamma[5]) * sign(det(self.e))
             two = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
-                         g.adj(g.cshift(links[mu], nu, -1)) * U_nu_x_minus_nu *
-                         eslash[rho] * eslash[sig] * g.gamma[5]) * sign(det(e))
+                         g.adj(g.cshift(self.U[mu], nu, -1)) * U_nu_x_minus_nu *
+                         eslash[rho] * eslash[sig] * g.gamma[5]) * sign(det(self.e))
             three = g.eval(e_rho_x_plus_mu * e_sig_x_plus_mu *
                            g.gamma[5] * U_nu_x_plus_mu *
-                           g.adj(U_mu_x_plus_nu) * g.adj(links[nu])) * sign_x_plus_mu
+                           g.adj(U_mu_x_plus_nu) * g.adj(self.U[nu])) * sign_x_plus_mu
             four = g.eval(e_rho_x_plus_mu * e_sig_x_plus_mu *
                           g.gamma[5] * g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
-                          g.adj(g.cshift(links[mu], nu, -1)) *
+                          g.adj(g.cshift(self.U[mu], nu, -1)) *
                           U_nu_x_minus_nu) * sign_x_plus_mu
             five = g.eval(U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
                           e_rho_x_plus_nu * e_sig_x_plus_nu *
-                          g.gamma[5] * g.adj(links[nu])) * sign_x_plus_nu
+                          g.gamma[5] * g.adj(self.U[nu])) * sign_x_plus_nu
             six = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
-                         g.adj(g.cshift(links[mu], nu, -1)) *
+                         g.adj(g.cshift(self.U[mu], nu, -1)) *
                          e_rho_x_minus_nu * e_sig_x_minus_nu *
                          g.gamma[5] * U_nu_x_minus_nu) * sign_x_minus_nu
             seven = g.eval(U_nu_x_plus_mu * g.cshift(e_rho_x_plus_mu, nu, 1) *
                            g.cshift(e_sig_x_plus_mu, nu, 1) * g.gamma[5] *
                            g.adj(U_mu_x_plus_nu) *
-                           g.adj(links[nu])) * g.cshift(sign_x_plus_mu, nu, 1)
+                           g.adj(self.U[nu])) * g.cshift(sign_x_plus_mu, nu, 1)
             eight = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
                            g.cshift(e_rho_x_plus_mu, nu, -1) *
                            g.cshift(e_sig_x_plus_mu, nu, -1) * g.gamma[5] *
-                           g.adj(g.cshift(links[mu], nu, -1)) *
+                           g.adj(g.cshift(self.U[mu], nu, -1)) *
                            U_nu_x_minus_nu) * g.cshift(sign_x_plus_mu, nu, -1)
             Emu += 0.125 * val * (one - two + three - four + five - six + seven - eight)
             # Emutilde part
@@ -125,38 +131,39 @@ class Simulation:
         # return (Emu, Emutilde)
         return Emu
 
-    def eenv(links, eslash, mu):
-        Vmu = g.mspin(grid)
+    def eenv(self, eslash, mu):
+        Vmu = g.mspin(self.grid)
         Vmu[:] = 0
-        Wmu = g.mspin(grid)
+        Wmu = g.mspin(self.grid)
         Wmu[:] = 0
+        # eslash = self.make_eslash()
         for (nu, rho, sig), val in levi3[mu].items():
             Vmu += eslash[nu] * eslash[rho] * eslash[sig] * g.gamma[5] * val
             Wmu += (eslash[nu] * g.gamma[5] *
-                    g.qcd.gauge.field_strength(links, rho, sig) * val)
-        return (lam / 96)*Vmu - (kappa / 16)*Wmu
+                    g.qcd.gauge.field_strength(self.U, rho, sig) * val)
+        return (self.lam / 96)*Vmu - (self.kappa / 16)*Wmu
     # return Vmu
         
             
-    def compute_link_action(links, e, mu):
-        R = g.real(grid)
+    def compute_link_action(self, mu):
+        R = g.real(self.grid)
         R[:] = 0
         # eslash = make_eslash(e)
         # E, Etil = staple(links, e, mu)
-        E = staple(links, e, mu)
+        E = self.staple(mu)
         # R = g.trace(links[mu] * E) + g.trace(Etil * g.adj(links[mu]))
-        R = g.trace(links[mu] * E)
+        R = g.trace(self.U[mu] * E)
         # R = g.trace(Etil * g.adj(links[mu]))
-        return (-kappa / 16) * R
+        return (-self.kappa / 16) * R
     # return R
 
 
-    def compute_tet_action(links, e, mu):
-        V = g.real(grid)
+    def compute_tet_action(self, mu):
+        V = g.real(self.grid)
         V[:] = 0
-        eslash = make_eslash(e)
-        F = eenv(links, eslash, mu)
-        V = sign(det(e)) * g.trace(eslash[mu] * F)
+        eslash = self.make_eslash()
+        F = self.eenv(eslash, mu)
+        V = sign(det(self.e)) * g.trace(eslash[mu] * F)
         return V
     # V = g.trace(eslash[mu] * F)
     # return V
@@ -166,105 +173,166 @@ class Simulation:
 #     nu, rho, sig = idx[0], idx[1], idx[2]
 #     g.trace(g.gamma[5] * g.qcd.gauge.field_strength(link, mu, nu) * eslash[rho] * eslash[sig])
 
-    def compute_total_action(links, e):
-        want = g.real(grid)
+    def compute_total_action(self,):
+        want = g.real(self.grid)
         want[:] = 0
         for mu in range(4):
             # A = compute_link_action(links, e, mu)
-            B = compute_tet_action(links, e, mu)
+            B = self.compute_tet_action(mu)
             want += B
         return want
 
     def make_Us(self,):
         # Mike's links
         # make log U
-        lnU = [g.mspin(grid) for mu in range(4)]
+        lnU = [g.mspin(self.grid) for mu in range(4)]
         for i in range(4):
             lnU[i][:] = 0
         # gamma commutators
         Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
                   [a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
-        omega = [ [ [ rng.normal(g.complex(grid)) for b in range(0,4)]
+        omega = [ [ [ self.rng.normal(g.complex(self.grid)) for b in range(0,4)]
                     for a in range(0,4) ] for mu in range(0, 4) ]
         for mu in range(0, 4):
             for a in range(0, 4):
                 for b in range(0, 4):
                     lnU[mu] += Ji2[a][b]*omega[mu][a][b]
         # the Us
-        U = [ g.mspin(grid) for mu in range(0,4) ]
+        self.U = [ g.mspin(self.grid) for mu in range(0,4) ]
         for mu in range(0,4):
-            U[mu] = g.matrix.exp(lnU[mu])
+            self.U[mu] = g.matrix.exp(lnU[mu])
 
     
 
-    def update_links(links, e, mask):
+    def update_links(self,):
         for mu in range(4):
             # action = compute_action(links, e)
-            action = compute_link_action(links, e, mu)
+            action = self.compute_link_action(mu)
             # V = g.lattice(links[mu])
-            V_eye = g.identity(links[mu])
+            V_eye = g.identity(self.U[mu])
             # g.message(V_eye)
-            V = random_links(scale=0.1)
+            V = self.random_links(scale=0.1)
             # g.message(V)
-            V = g.where(mask, V, V_eye)
-            lo = links[mu]
+            V = g.where(self.mask, V, V_eye)
+            lo = self.U[mu]
             # links_prime = links.copy() # copy links?
             # g.message(links_prime)
             lp = g.eval(V * lo)
-            links[mu] = g.eval(V * lo)
+            self.U[mu] = g.eval(V * lo)
             # links_prime[mu] = g.eval(V * links[mu])
             # action_prime = compute_action(links_prime, e)
-            action_prime = compute_link_action(links, e, mu)
+            action_prime = self.compute_link_action(mu)
             prob = g.component.exp(action - action_prime)
             # g.message(prob)
             rn = g.lattice(prob)
-            rng.uniform_real(rn)
+            self.rng.uniform_real(rn)
             accept = rn < prob
-            accept *= mask
-            links[mu] @= g.where(accept, lp, lo)
+            accept *= self.mask
+            self.U[mu] @= g.where(accept, lp, lo)
             # print(links[mu][0,0,0,0], lo[0,0,0,0], lp[0,0,0,0])
             # print('==================')
         
         
-    def update_tetrads(links, e, mask):
+    def update_tetrads(self,):
         for mu in range(4):
             for a in range(4):
                 # action = compute_action(links, e)
-                action = compute_tet_action(links, e, mu)
-                ii_eye = g.identity(e[mu][a])
-                ii = random_shift(scale=1.)
-                ii = g.where(mask, ii, ii_eye)
-                eo = e[mu][a]
-                dete = det(e)
+                action = self.compute_tet_action(mu)
+                ii_eye = g.identity(self.e[mu][a])
+                ii = self.random_shift(scale=1.)
+                ii = g.where(self.mask, ii, ii_eye)
+                eo = self.e[mu][a]
+                dete = det(self.e)
                 # print(eo[0,0,0,0])
                 ep = g.eval(ii + eo)
                 # print(ep[0,0,0,0])
                 # print(ep, e[mu][a])
                 # assert False
                 # e_prime = 1
-                e[mu][a] = g.eval(ii + eo)
-                detep = det(e)
+                self.e[mu][a] = g.eval(ii + eo)
+                detep = det(self.e)
                 # print(eo[0,0,0,0], e[mu][a][0,0,0,0])
                 # print(e[mu][a][0,0,0,0], e_prime[mu][a][0,0,0,0])
                 # action_prime = compute_action(links, e_prime)
-                action_prime = compute_tet_action(links, e, mu)
+                action_prime = self.compute_tet_action(mu)
                 # print(np.sum(g.eval(action_prime)[:]), np.sum(g.eval(action)[:]))
-                meas = g.component.pow(K)(g.component.abs(detep) * g.component.inv(g.component.abs(dete)))
+                meas = g.component.pow(self.K)(g.component.abs(detep) * g.component.inv(g.component.abs(dete)))
                 prob = g.eval(g.component.exp(action - action_prime) * meas)
                 rn = g.lattice(prob)
-                rng.uniform_real(rn)
+                self.rng.uniform_real(rn)
                 accept = rn < prob
-                accept *= mask
-                e[mu][a] @= g.where(accept, ep, eo)
+                accept *= self.mask
+                self.e[mu][a] @= g.where(accept, ep, eo)
                 # print(e[mu][a][0,0,0,0], eo[0,0,0,0], ep[0,0,0,0])
                 # print(np.sum(g.eval(compute_tet_action(links, e, mu))[:]))
                 # print('==================')
                 
             
             
-    def update(links, e, mask):
-        update_links(links, e, mask)
-        update_tetrads(links, e, mask)
+    def update_fields(self,):
+        self.update_links()
+        self.update_tetrads()
+
+    def run(self, nswps, kappa, lam, K):
+        self.kappa = kappa
+        self.lam = lam
+        self.K = K
+        # need to do this masking for even odd update
+        grid_eo = self.grid.checkerboarded(g.redblack)
+        self.mask_rb = g.complex(grid_eo)
+        self.mask_rb[:] = 1
+        self.mask = g.complex(self.grid)
+
+        self.measurements = list()
+        for swp in range(nswps):
+            print(swp)
+            self.sweep(swp)
+
+    def sweep(self, swp):
+        plaq = g.qcd.gauge.plaquette(self.U)
+        R_2x1 = g.qcd.gauge.rectangle(self.U, 2, 1)
+        the_det = np.real(np.mean(det(self.e)[:]))
+        act = np.real(np.sum(g.eval(self.compute_total_action())[:]) / self.L**4)
+        self.measurements.append([plaq, R_2x1,the_det,act])
+        # act2 = np.sum(g.eval(compute_action_check(U, e))[:])
+        # # act2 = g.eval(compute_action_check(U, e))[0,0,0,0]
+        # act1 = g.real(grid)
+        # act1[:] = 0
+        # for mu in range(4):
+        #     act1 += g.eval(compute_link_action(U, e, mu))
+        # act1 = np.sum(act1[:])
+        g.message(f"Metropolis {swp} has det = {the_det}, P = {plaq}, R_2x1 = {R_2x1}, act = {act}")
+        # act2 = np.mean(g.eval(compute_action_check(U, e))[:])
+        # act1 = g.real(grid)
+        # act1[:] = 0
+        # for mu in range(4):
+        #     act1 += g.eval(compute_tet_action(U, e, mu))
+        # act1 = np.mean(act1[:])
+        # g.message(f"action1 = {act1}, action2 = {act2}")
+        for cb in [g.even, g.odd]:
+            self.mask[:] = 0
+            self.mask_rb.checkerboard(cb)
+            g.set_checkerboard(self.mask, self.mask_rb)
+            self.update_fields()
+
+
+
+        #     act2 = np.sum(g.eval(compute_action_check(U, e))[:])
+#     # act2 = g.eval(compute_action_check(U, e))[0,0,0,0]
+#     act1 = g.real(grid)
+#     act1[:] = 0
+#     for mu in range(4):
+#         act1 += g.eval(compute_link_action(U, e, mu))
+#     act1 = np.sum(act1[:])
+#     # act1 = act1[0,0,0,0]
+#     e00 = e[0][0][0,0,0,0]
+# #     GGGG = g.qcd.gauge.field_strength(U,0,1)[0,0,0,0][0,1]
+#     g.message(f"action1 = {act1}, action2 = {act2}")
+    # assert False
+    # g.message(e[0][0])
+        # meas = list()
+        # for i in range(nswp):
+        
 
 
 
@@ -368,76 +436,21 @@ if __name__ == "__main__":
     kappa = 5.
     lam = 5.
     K = -1.
+    L = 4
     # alpha = 1
     # beta = 1
-    nswp = 2000
-    
-    # make the tetrads
-    e = [[rng.normal(g.real(grid)) for a in range(4)] for mu in range(4)]
-    
-    
-        
-        
-    # In[8]:
+    nswps = 10
+
     levi = make_levi()
     # print(levi)
     levi3 = three_levi()
-    # print(levi3)
-    # assert False
-    # a link update
-    
-    # need to do this masking for even odd update
-    grid_eo = grid.checkerboarded(g.redblack)
-    mask_rb = g.complex(grid_eo)
-    mask_rb[:] = 1
-    mask = g.complex(grid)
 
-#     act2 = np.sum(g.eval(compute_action_check(U, e))[:])
-#     # act2 = g.eval(compute_action_check(U, e))[0,0,0,0]
-#     act1 = g.real(grid)
-#     act1[:] = 0
-#     for mu in range(4):
-#         act1 += g.eval(compute_link_action(U, e, mu))
-#     act1 = np.sum(act1[:])
-#     # act1 = act1[0,0,0,0]
-#     e00 = e[0][0][0,0,0,0]
-# #     GGGG = g.qcd.gauge.field_strength(U,0,1)[0,0,0,0][0,1]
-#     g.message(f"action1 = {act1}, action2 = {act2}")
-    # assert False
-    # g.message(e[0][0])
-    meas = list()
-    for i in range(nswp):
-        plaq = g.qcd.gauge.plaquette(U)
-        R_2x1 = g.qcd.gauge.rectangle(U, 2, 1)
-        the_det = np.real(np.mean(det(e)[:]))
-        act = np.real(np.sum(g.eval(compute_total_action(U, e))[:]) / L**4)
-        meas.append([plaq, R_2x1,the_det,act])
-        # act2 = np.sum(g.eval(compute_action_check(U, e))[:])
-        # # act2 = g.eval(compute_action_check(U, e))[0,0,0,0]
-        # act1 = g.real(grid)
-        # act1[:] = 0
-        # for mu in range(4):
-        #     act1 += g.eval(compute_link_action(U, e, mu))
-        # act1 = np.sum(act1[:])
-        g.message(f"Metropolis {i} has det = {the_det}, P = {plaq}, R_2x1 = {R_2x1}, act = {act}")
-        # act2 = np.mean(g.eval(compute_action_check(U, e))[:])
-        # act1 = g.real(grid)
-        # act1[:] = 0
-        # for mu in range(4):
-        #     act1 += g.eval(compute_tet_action(U, e, mu))
-        # act1 = np.mean(act1[:])
-        # g.message(f"action1 = {act1}, action2 = {act2}")
-        for cb in [g.even, g.odd]:
-            mask[:] = 0
-            mask_rb.checkerboard(cb)
-            g.set_checkerboard(mask, mask_rb)
-            update(U, e, mask)
+    lattice = Simulation(L)
+    lattice.run(nswps, kappa, lam, K)
     
-    np.save("measure_K" + str(K) + "_kappa" + str(kappa) + "_lam" + str(lam) + ".npy", meas)
+    
+    np.save("measure_nswps" + str(nswps) + "_K" + str(K) +
+            "_kappa" + str(kappa) + "_lam" + str(lam) +
+            ".npy", lattice.measurements)
         
             
-# In[ ]:
-
-
-
-
