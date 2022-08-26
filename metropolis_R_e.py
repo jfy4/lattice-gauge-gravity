@@ -1,8 +1,4 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[3]:
-
+#!/miniconda3/bin/python
 
 import gpt as g
 import itertools as it
@@ -136,26 +132,20 @@ class Simulation:
         Vmu[:] = 0
         Wmu = g.mspin(self.grid)
         Wmu[:] = 0
-        # eslash = self.make_eslash()
         for (nu, rho, sig), val in levi3[mu].items():
             Vmu += eslash[nu] * eslash[rho] * eslash[sig] * g.gamma[5] * val
             Wmu += (eslash[nu] * g.gamma[5] *
                     g.qcd.gauge.field_strength(self.U, rho, sig) * val)
         return (self.lam / 96)*Vmu - (self.kappa / 16)*Wmu
-    # return Vmu
         
             
     def compute_link_action(self, mu):
         R = g.real(self.grid)
         R[:] = 0
-        # eslash = make_eslash(e)
         # E, Etil = staple(links, e, mu)
         E = self.staple(mu)
-        # R = g.trace(links[mu] * E) + g.trace(Etil * g.adj(links[mu]))
         R = g.trace(self.U[mu] * E)
-        # R = g.trace(Etil * g.adj(links[mu]))
         return (-self.kappa / 16) * R
-    # return R
 
 
     def compute_tet_action(self, mu):
@@ -165,19 +155,11 @@ class Simulation:
         F = self.eenv(eslash, mu)
         V = sign(det(self.e)) * g.trace(eslash[mu] * F)
         return V
-    # V = g.trace(eslash[mu] * F)
-    # return V
-
-# levi3 = three_levi()
-# for idx, val in  levi3[mu]:
-#     nu, rho, sig = idx[0], idx[1], idx[2]
-#     g.trace(g.gamma[5] * g.qcd.gauge.field_strength(link, mu, nu) * eslash[rho] * eslash[sig])
 
     def compute_total_action(self,):
         want = g.real(self.grid)
         want[:] = 0
         for mu in range(4):
-            # A = compute_link_action(links, e, mu)
             B = self.compute_tet_action(mu)
             want += B
         return want
@@ -255,7 +237,7 @@ class Simulation:
                 # print(e[mu][a][0,0,0,0], e_prime[mu][a][0,0,0,0])
                 # action_prime = compute_action(links, e_prime)
                 action_prime = self.compute_tet_action(mu)
-                print(np.sum(g.eval(action_prime)[:]), np.sum(g.eval(action)[:]))
+                # print(np.sum(g.eval(action_prime)[:]), np.sum(g.eval(action)[:]))
                 meas = g.component.pow(self.K)(g.component.abs(detep) * g.component.inv(g.component.abs(dete)))
                 prob = g.eval(g.component.exp(action - action_prime) * meas)
                 rn = g.lattice(prob)
@@ -317,21 +299,6 @@ class Simulation:
 
 
 
-        #     act2 = np.sum(g.eval(compute_action_check(U, e))[:])
-#     # act2 = g.eval(compute_action_check(U, e))[0,0,0,0]
-#     act1 = g.real(grid)
-#     act1[:] = 0
-#     for mu in range(4):
-#         act1 += g.eval(compute_link_action(U, e, mu))
-#     act1 = np.sum(act1[:])
-#     # act1 = act1[0,0,0,0]
-#     e00 = e[0][0][0,0,0,0]
-# #     GGGG = g.qcd.gauge.field_strength(U,0,1)[0,0,0,0][0,1]
-#     g.message(f"action1 = {act1}, action2 = {act2}")
-    # assert False
-    # g.message(e[0][0])
-        # meas = list()
-        # for i in range(nswp):
         
 
 
@@ -357,40 +324,39 @@ def sign(x):
     return the_sign
 
 
-
-# def compute_action_check(link, e):
-#     R = g.real(grid)
-#     R[:] = 0
-#     # Rsq = g.real(grid)
-#     # Rsq[:] = 0
-#     vol = g.real(grid)
-#     vol[:] = 0
-#     # GB = g.real(grid)
-#     # GB[:] = 0
-#     eslash = make_eslash(e)
-#     # eslash = [g.mspin(grid) for mu in range(4)]
-#     # for mu in range(4):
-#     #     for a in range(4):
-#     #         eslash[mu] += g.gamma[a].tensor()*e[mu][a]
-#     for idx, val in levi.items():
-#         # print(idx, val)
-#         mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
-#         Gmunu = g.qcd.gauge.field_strength(link, mu, nu)
-#         # Grhosig = g.qcd.gauge.field_strength(link, rho, sig)
-#         R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
-#         # R += r
-#         vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig]) * val
-#     #     GB += g.trace(g.gamma[5] * Gmunu * Grhosig) * val
-#     # Rsq = g.component.pow(2)(R)
-#     # action = sign(det(e)) * ((-1) * (kappa / 16) * R +
-#     #                                (lam / 96) * vol +
-#     #                                alpha * Rsq +
-#     #                                beta * GB)
-#     # volp = np.mean(g.eval(vol)[:])
-#     # g.message(f"vol = {volp}")
-#     action = sign(det(e)) * ((-1) * (kappa / 16) * R) + (lam / 96) * vol)
-#     # action = R * sign(det(e))
-#     return action
+    def compute_action_check(self,):
+        R = g.real(self.grid)
+        R[:] = 0
+        # Rsq = g.real(grid)
+        # Rsq[:] = 0
+        vol = g.real(self.grid)
+        vol[:] = 0
+        # GB = g.real(grid)
+        # GB[:] = 0
+        eslash = self.make_eslash()
+        # eslash = [g.mspin(grid) for mu in range(4)]
+        # for mu in range(4):
+        #     for a in range(4):
+        #         eslash[mu] += g.gamma[a].tensor()*e[mu][a]
+        for idx, val in levi.items():
+            # print(idx, val)
+            mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
+            Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
+            # Grhosig = g.qcd.gauge.field_strength(link, rho, sig)
+            R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
+            # R += r
+            vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig]) * val
+            #     GB += g.trace(g.gamma[5] * Gmunu * Grhosig) * val
+            # Rsq = g.component.pow(2)(R)
+            # action = sign(det(e)) * ((-1) * (kappa / 16) * R +
+            #                                (lam / 96) * vol +
+            #                                alpha * Rsq +
+            #                                beta * GB)
+            # volp = np.mean(g.eval(vol)[:])
+            # g.message(f"vol = {volp}")
+        action = sign(det(self.e)) * ((-1) * (kappa / 16) * R) + (lam / 96) * vol)
+        # action = R * sign(det(e))
+        return action
 
 def make_levi():
     arr = dict()
@@ -420,14 +386,6 @@ def three_levi():
 
 
 
-
-
-
-
-
-
-# In[4]:
-
 if __name__ == "__main__":
 
     # initialize lattice
@@ -441,8 +399,8 @@ if __name__ == "__main__":
     # beta = 1
     nswps = 1
 
+    # make the levi tensors
     levi = make_levi()
-    # print(levi)
     levi3 = three_levi()
 
     lattice = Simulation(L)
