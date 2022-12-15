@@ -1,7 +1,6 @@
 #!/miniconda3/bin/python
 
 import gpt as g
-from gpt.core
 import itertools as it
 import numpy as np
 import copy
@@ -23,7 +22,7 @@ class Gbase(differentiable_functional):
         # dS(Umu) = 1/g^2 tracelss_anti_hermitian(Umu * staple)
         # define staple here as adjoint
 
-        # I think I have to rewrite this for the gravity derivative
+        # I have to rewrite this for the gravity derivative
         dS = []
         for Umu in dU:
             mu = U.index(Umu)
@@ -51,9 +50,25 @@ class Ggauge(Gbase):
         #      = -2/g^2 sum_{mu,nu} Re[Tr[staple_{mu,nu}^dag U_mu]]
         #
         # since   P_{mu,nu} = staple_{mu,nu}^dag U_mu + staple_{mu,nu} U_mu^dag = 2 Re[staple^dag * U]
-        Nd = len(U)
-        vol = U[0].grid.gsites
-        return self.beta * (1.0 - g.qcd.gauge.plaquette(U)) * (Nd - 1) * Nd * vol / 2.0
+        # Nd = len(U)
+        # vol = U[0].grid.gsites
+        # return self.beta * (1.0 - g.qcd.gauge.plaquette(U)) * (Nd - 1) * Nd * vol / 2.0
+
+        R = g.lattice(U[0])
+        R[:] = 0
+        # vol = g.real(self.grid)
+        # vol[:] = 0
+        # eslash = self.make_eslash()
+        for idx, val in levi.items():
+            mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
+            Gmunu = g.qcd.gauge.field_strength(U, mu, nu)
+            R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
+            # vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig]) * val
+        Rsq = R * R # g.component.pow(2)(R)
+        # dete = det(self.e)
+        action = (sign(dete) * ((-1) * (self.kappa / 16) * R
+                                + self.alpha * Rsq * g.component.inv(dete) / 8))
+        return action
 
     def staple(self, U, mu):
         st = g.lattice(U[0])
