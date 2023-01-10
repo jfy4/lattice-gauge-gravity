@@ -3,12 +3,55 @@
 import gpt as g
 import itertools as it
 import numpy as np
+import sys, os
 import copy
 from gpt.core.group import differentiable_functional
 
 
+def make_eslash(e):
+    eslash = [g.mspin(grid) for mu in range(4)]
+    for mu in range(4):
+        eslash[mu][:] = 0
+    for mu in range(4):
+        for a in range(4):
+            eslash[mu] += g.gamma[a].tensor() * e[mu][a]
+    return eslash
+
+
 class Gbase(differentiable_functional):
-    def gradient(self, U, dU):
+    def Ugradient(self, U, e, dU):
+        # Eq. (1.3) and Appendix A of https://link.springer.com/content/pdf/10.1007/JHEP08(2010)071.pdf
+        # S(Umu) = -2/g^2 Re trace(Umu * staple)
+        # dS(Umu) = lim_{eps->0} Ta ( S(e^{eps Ta} Umu) - S(Umu) ) / eps  with  \Tr[T_a T_b]=-1/2 \delta_{ab}
+        # dS(Umu) = -2/g^2 T_a Re trace(T_a * Umu * staple)
+        #         = -2/g^2 T_a 1/2 trace(T_a * Umu * staple + adj(staple) * adj(Umu) * adj(Ta))
+        #         = -2/g^2 T_a 1/2 trace(T_a * (Umu * staple - adj(staple) * adj(Umu)))
+        #         = -2/g^2 T_a 1/2 trace(T_a * (Umu * staple - adj(Umu*staple)))
+        #         = -2/g^2 T_a trace(T_a * r0)    with r0 = 1/2(Umu * staple - adj(Umu*staple))
+        # r0 = c_a T_a + imaginary_diagonal   with A^dag = -A
+        # trace(T_a * r0) = -1/2 c_a
+        # dS(Umu) = 1/g^2 tracelss_anti_hermitian(Umu * staple)
+        # define staple here as adjoint
+        dS = []
+        for Umu in dU:
+            mu = U.index(Umu)
+            dSdU_mu = self.staple(U, e, mu)
+            # print(type(dSdU_mu))
+            # print(dSdU_mu)
+            # assert False
+            # NOTE why is there an adj in (qcd version of) U * staple?
+            # dSdU_mu @= g.qcd.gauge.project.traceless_anti_hermitian(g(Umu * g.adj(dSdU_mu))) * (
+            #     1.0 / 8.0 / 1j
+            # )
+            # non-adjoint version here
+            dSdU_mu @= g.qcd.gauge.project.traceless_anti_hermitian(g(Umu * dSdU_mu)) * (
+                1.0 / 8.0 / 1j
+            )
+            dSdU_mu.otype = Umu.otype.cartesian()
+            dS.append(dSdU_mu)
+        return dS
+
+    def egradient(self, U, e, de):
         # Eq. (1.3) and Appendix A of https://link.springer.com/content/pdf/10.1007/JHEP08(2010)071.pdf
         # S(Umu) = -2/g^2 Re trace(Umu * staple)
         # dS(Umu) = lim_{eps->0} Ta ( S(e^{eps Ta} Umu) - S(Umu) ) / eps  with  \Tr[T_a T_b]=-1/2 \delta_{ab}
@@ -22,26 +65,56 @@ class Gbase(differentiable_functional):
         # dS(Umu) = 1/g^2 tracelss_anti_hermitian(Umu * staple)
         # define staple here as adjoint
 
-        # I have to rewrite this for the gravity derivative
         dS = []
         for Umu in dU:
             mu = U.index(Umu)
-            dSdU_mu = self.staple(U, mu)
+            dSdU_mu = self.staple(U, e, mu)
+            # NOTE why is there an adj in (qcd version of) U * staple?
             dSdU_mu @= g.qcd.gauge.project.traceless_anti_hermitian(g(Umu * g.adj(dSdU_mu))) * (
-                1.0 / 2.0 / 1j
+                1.0 / 8.0 / 1j
             )
             dSdU_mu.otype = Umu.otype.cartesian()
             dS.append(dSdU_mu)
         return dS
 
+def random_algebra_element(lnU, scale=1.0):
+    # lnU = [g.mspin(grid) for mu in range(4)]
+    for mu in range(4):
+        lnU[mu][:] = 0
+    # gamma commutators
+    Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
+                [a].tensor())/4 for b in range(0,4) ] for a in range(0,4) ]
+    omega = [ [ [ rng.normal(g.complex(grid), sigma=scale) for b in range(0,4)]
+                for a in range(0,4) ] for mu in range(0, 4) ]
+    for mu in range(0, 4):
+        for a in range(0, 4):
+            for b in range(0, 4):
+                lnU[mu] += Ji2[a][b]*omega[mu][a][b]
+    # V = g.mspin(grid)
+    # V = g.matrix.exp(lnV)
+    # return lnU
+
+# def random_links(scale=1.0):
+#     Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
+#                 [a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
+#     lnV = g.mspin(grid) 
+#     lnV[:] = 0
+#     for a in range(0, 4):
+#         for b in range(0, 4):
+#             lnV += Ji2[a][b] * rng.normal(g.complex(grid), sigma=scale)
+#     V = g.mspin(grid)
+#     V = g.matrix.exp(lnV)
+#     return V
+
 
 class Ggauge(Gbase):
-    def __init__(self, kappa, alpha):
+    def __init__(self, kappa):
         self.kappa = kappa
-        self.alpha = alpha
-        # self.__name__ = f"gravity({kappa, alpha})"
+        # self.lam = lam
+        # self.alpha = alpha
+        self.__name__ = f"gravity({kappa})"
 
-    def __call__(self, U, eslash):
+    def __call__(self, U, e):
         # Let beta = 2 ndim_repr / g^2
         #
         # S(U) = -beta sum_{mu>nu} Re[Tr[P_{mu,nu}]]/ndim_repr        (only U-dependent part)
@@ -54,176 +127,249 @@ class Ggauge(Gbase):
         # vol = U[0].grid.gsites
         # return self.beta * (1.0 - g.qcd.gauge.plaquette(U)) * (Nd - 1) * Nd * vol / 2.0
 
-        R = g.lattice(U[0])
+        # NOTE "R" here is really det(e) * R
+        R = g.real(grid)
         R[:] = 0
-        # vol = g.real(self.grid)
-        # vol[:] = 0
-        # eslash = self.make_eslash()
+        vol = g.real(grid)
+        vol[:] = 0
+        eslash = make_eslash(e)
         for idx, val in levi.items():
             mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
             Gmunu = g.qcd.gauge.field_strength(U, mu, nu)
             R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
-            # vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig]) * val
-        Rsq = R * R # g.component.pow(2)(R)
-        # dete = det(self.e)
-        action = (sign(dete) * ((-1) * (self.kappa / 16) * R
-                                + self.alpha * Rsq * g.component.inv(dete) / 8))
-        return action
+            vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig]) * val
+        # Rsq = R * R # g.component.pow(2)(R)
+        dete = det(e)
+        # dete = vol # is this dete?
+        # action = (sign(dete) * ((-1) * (self.kappa / 16) * R
+        #                         + self.alpha * Rsq * g.component.inv(dete) / 8))
+        action = (sign(dete) * ((-1) * (self.kappa / 16) * R))
+        return np.real(np.sum(g.eval(action)[:]))
 
-    def staple(self, U, mu):
-        st = g.lattice(U[0])
-        st[:] = 0
-        Nd = len(U)
-        for nu in range(Nd):
-            if mu != nu:
-                st += g.qcd.gauge.staple(U, mu, nu)
-        scale = self.beta / U[0].otype.shape[0]
-        return g(scale * st)
+    # def staple(self, U, mu):
+    #     st = g.lattice(U[0])
+    #     st[:] = 0
+    #     Nd = len(U)
+    #     for nu in range(Nd):
+    #         if mu != nu:
+    #             st += g.qcd.gauge.staple(U, mu, nu)
+    #     scale = self.beta / U[0].otype.shape[0]
+    #     return g(scale * st)
 
+    def staple(self, U, e, mu):
+        Emu = g.lattice(U[0])
+        Emu[:] = 0
+        # Emutilde = g.mspin(self.grid)
+        # Emutilde[:] = 0
+        eslash = make_eslash(e)
+        sign_x_plus_mu = g.cshift(sign(det(e)), mu, 1)
+        # print(eslash[mu])
+        # assert False
+        for (nu,rho,sig), val in levi3[mu].items():
+            # print(nu,rho,sig, val)
+            sign_x_minus_nu = g.cshift(sign(det(e)), nu, -1)
+            sign_x_plus_nu = g.cshift(sign(det(e)), nu, 1)
+            
+            e_rho_x_plus_mu = g.cshift(eslash[rho], mu, 1)
+            e_sig_x_plus_mu = g.cshift(eslash[sig], mu, 1)
+            e_rho_x_plus_nu = g.cshift(eslash[rho], nu, 1)
+            e_sig_x_plus_nu = g.cshift(eslash[sig], nu, 1)
+            e_rho_x_minus_nu = g.cshift(eslash[rho], nu, -1)
+            e_sig_x_minus_nu = g.cshift(eslash[sig], nu, -1)
+            
+            U_nu_x_plus_mu = g.cshift(U[nu], mu, 1)
+            U_nu_x_minus_nu = g.cshift(U[nu], nu, -1)
+            U_mu_x_plus_nu = g.cshift(U[mu], nu, 1)
+            
+            one = g.eval(U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
+                         g.adj(U[nu]) * eslash[rho] * eslash[sig] *
+                         g.gamma[5]) * sign(det(e))
+            two = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
+                         g.adj(g.cshift(U[mu], nu, -1)) * U_nu_x_minus_nu *
+                         eslash[rho] * eslash[sig] * g.gamma[5]) * sign(det(e))
+            three = g.eval(e_rho_x_plus_mu * e_sig_x_plus_mu *
+                           g.gamma[5] * U_nu_x_plus_mu *
+                           g.adj(U_mu_x_plus_nu) * g.adj(U[nu])) * sign_x_plus_mu
+            four = g.eval(e_rho_x_plus_mu * e_sig_x_plus_mu *
+                          g.gamma[5] * g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
+                          g.adj(g.cshift(U[mu], nu, -1)) *
+                          U_nu_x_minus_nu) * sign_x_plus_mu
+            five = g.eval(U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
+                          e_rho_x_plus_nu * e_sig_x_plus_nu *
+                          g.gamma[5] * g.adj(U[nu])) * sign_x_plus_nu
+            six = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
+                         g.adj(g.cshift(U[mu], nu, -1)) *
+                         e_rho_x_minus_nu * e_sig_x_minus_nu *
+                         g.gamma[5] * U_nu_x_minus_nu) * sign_x_minus_nu
+            seven = g.eval(U_nu_x_plus_mu * g.cshift(e_rho_x_plus_mu, nu, 1) *
+                           g.cshift(e_sig_x_plus_mu, nu, 1) * g.gamma[5] *
+                           g.adj(U_mu_x_plus_nu) *
+                           g.adj(U[nu])) * g.cshift(sign_x_plus_mu, nu, 1)
+            eight = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
+                           g.cshift(e_rho_x_plus_mu, nu, -1) *
+                           g.cshift(e_sig_x_plus_mu, nu, -1) * g.gamma[5] *
+                           g.adj(g.cshift(U[mu], nu, -1)) *
+                           U_nu_x_minus_nu) * g.cshift(sign_x_plus_mu, nu, -1)
+            # I'm shifting kappa inside here
+            Emu += 0.125 * val * (one - two + three - four + five - six + seven - eight) * self.kappa
+        return g(Emu)
 
-
-
-class Simulation:
-
-    def __init__(self, L, kappa, lamb, alpha):
-        self.L = L # symmetric lattice
-        self.grid = g.grid([self.L]*4, g.double) # make the lattice
-        g.message(self.grid)
-        self.rng = g.random("seed string") # initialize random seed
-        self.kappa, self.lam, self.alpha = kappa, lamb, alpha # the couplings
-
-        # make the tetrads
-        self.e = [[self.rng.normal(g.real(self.grid)) for a in range(4)] for mu in range(4)]
-        self.make_Us() # creates the Us
-        
-
-    def random_shift(self, scale=1.0):
-        return self.rng.normal(g.real(self.grid), sigma=scale)
-    
-    def make_eslash(self,):
-        eslash = [g.mspin(self.grid) for mu in range(4)]
-        for mu in range(4):
-            eslash[mu][:] = 0
-        for mu in range(4):
-            for a in range(4):
-                eslash[mu] += g.gamma[a].tensor() * self.e[mu][a]
-        return eslash
-
-    def random_links(self, scale=1.0):
-        Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
-                  [a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
-        lnV = g.mspin(self.grid) 
-        lnV[:] = 0
+def make_Us():
+    # Mike's links
+    # make log U
+    lnU = [g.mspin(grid) for mu in range(4)]
+    for i in range(4):
+        lnU[i][:] = 0
+    # gamma commutators
+    Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
+                [a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
+    omega = [ [ [ rng.normal(g.complex(grid)) for b in range(0,4)]
+                for a in range(0,4) ] for mu in range(0, 4) ]
+    for mu in range(0, 4):
         for a in range(0, 4):
             for b in range(0, 4):
-                lnV += Ji2[a][b] * self.rng.normal(g.complex(self.grid), sigma=scale)
-        V = g.mspin(self.grid)
-        V = g.matrix.exp(lnV)
-        return V
+                lnU[mu] += Ji2[a][b]*omega[mu][a][b]
+    # the Us
+    U = [ g.mspin(grid) for mu in range(0,4) ]
+    for mu in range(0,4):
+        U[mu] = g.matrix.exp(lnU[mu])
+    return U
 
-    def compute_action_check(self,):
-        R = g.real(self.grid)
-        R[:] = 0
-        vol = g.real(self.grid)
-        vol[:] = 0
-        eslash = self.make_eslash()
-        for idx, val in levi.items():
-            mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
-            Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
-            R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
-            vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig]) * val
-        Rsq = R * R # g.component.pow(2)(R)
-        dete = det(self.e)
-        action = (sign(dete) * ((-1) * (self.kappa / 16) * R
-                                + (self.lam / 96) * vol
-                                + self.alpha * Rsq * g.component.inv(dete) / 8))
-        # action = R * sign(det(e))
-        return action
+
+# class Simulation:
+
+#     def __init__(self, L, kappa, lamb, alpha):
+#         self.L = L # symmetric lattice
+#         self.grid = g.grid([self.L]*4, g.double) # make the lattice
+#         g.message(self.grid)
+#         self.rng = g.random("seed string") # initialize random seed
+#         self.kappa, self.lam, self.alpha = kappa, lamb, alpha # the couplings
+
+#         # make the tetrads
+#         self.e = [[self.rng.normal(g.real(self.grid)) for a in range(4)] for mu in range(4)]
+#         self.make_Us() # creates the Us
+        
+
+#     def random_shift(self, scale=1.0):
+#         return self.rng.normal(g.real(self.grid), sigma=scale)
+    
+    
+
+#     def random_links(self, scale=1.0):
+#         Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
+#                   [a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
+#         lnV = g.mspin(self.grid) 
+#         lnV[:] = 0
+#         for a in range(0, 4):
+#             for b in range(0, 4):
+#                 lnV += Ji2[a][b] * self.rng.normal(g.complex(self.grid), sigma=scale)
+#         V = g.mspin(self.grid)
+#         V = g.matrix.exp(lnV)
+#         return V
+
+#     def compute_action_check(self,):
+#         R = g.real(self.grid)
+#         R[:] = 0
+#         vol = g.real(self.grid)
+#         vol[:] = 0
+#         eslash = self.make_eslash()
+#         for idx, val in levi.items():
+#             mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
+#             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
+#             R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
+#             vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig]) * val
+#         Rsq = R * R # g.component.pow(2)(R)
+#         dete = det(self.e)
+#         action = (sign(dete) * ((-1) * (self.kappa / 16) * R
+#                                 + (self.lam / 96) * vol
+#                                 + self.alpha * Rsq * g.component.inv(dete) / 8))
+#         # action = R * sign(det(e))
+#         return action
 
     
-    # def staple(self, mu):
-    #     Emu = g.mspin(self.grid)
-    #     Emu[:] = 0
-    #     Emutilde = g.mspin(self.grid)
-    #     Emutilde[:] = 0
-    #     eslash = self.make_eslash()
-    #     sign_x_plus_mu = g.cshift(sign(det(self.e)), mu, 1)
-    #     # print(eslash[mu])
-    #     # assert False
-    #     for (nu,rho,sig), val in levi3[mu].items():
-    #         # print(nu,rho,sig, val)
-    #         sign_x_minus_nu = g.cshift(sign(det(self.e)), nu, -1)
-    #         sign_x_plus_nu = g.cshift(sign(det(self.e)), nu, 1)
+#     def staple(self, mu):
+#         Emu = g.mspin(self.grid)
+#         Emu[:] = 0
+#         # Emutilde = g.mspin(self.grid)
+#         # Emutilde[:] = 0
+#         eslash = self.make_eslash()
+#         sign_x_plus_mu = g.cshift(sign(det(self.e)), mu, 1)
+#         # print(eslash[mu])
+#         # assert False
+#         for (nu,rho,sig), val in levi3[mu].items():
+#             # print(nu,rho,sig, val)
+#             sign_x_minus_nu = g.cshift(sign(det(self.e)), nu, -1)
+#             sign_x_plus_nu = g.cshift(sign(det(self.e)), nu, 1)
             
-    #         e_rho_x_plus_mu = g.cshift(eslash[rho], mu, 1)
-    #         e_sig_x_plus_mu = g.cshift(eslash[sig], mu, 1)
-    #         e_rho_x_plus_nu = g.cshift(eslash[rho], nu, 1)
-    #         e_sig_x_plus_nu = g.cshift(eslash[sig], nu, 1)
-    #         e_rho_x_minus_nu = g.cshift(eslash[rho], nu, -1)
-    #         e_sig_x_minus_nu = g.cshift(eslash[sig], nu, -1)
+#             e_rho_x_plus_mu = g.cshift(eslash[rho], mu, 1)
+#             e_sig_x_plus_mu = g.cshift(eslash[sig], mu, 1)
+#             e_rho_x_plus_nu = g.cshift(eslash[rho], nu, 1)
+#             e_sig_x_plus_nu = g.cshift(eslash[sig], nu, 1)
+#             e_rho_x_minus_nu = g.cshift(eslash[rho], nu, -1)
+#             e_sig_x_minus_nu = g.cshift(eslash[sig], nu, -1)
             
-    #         U_nu_x_plus_mu = g.cshift(self.U[nu], mu, 1)
-    #         U_nu_x_minus_nu = g.cshift(self.U[nu], nu, -1)
-    #         U_mu_x_plus_nu = g.cshift(self.U[mu], nu, 1)
+#             U_nu_x_plus_mu = g.cshift(self.U[nu], mu, 1)
+#             U_nu_x_minus_nu = g.cshift(self.U[nu], nu, -1)
+#             U_mu_x_plus_nu = g.cshift(self.U[mu], nu, 1)
             
-    #         one = g.eval(U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
-    #                      g.adj(self.U[nu]) * eslash[rho] * eslash[sig] *
-    #                      g.gamma[5]) * sign(det(self.e))
-    #         two = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
-    #                      g.adj(g.cshift(self.U[mu], nu, -1)) * U_nu_x_minus_nu *
-    #                      eslash[rho] * eslash[sig] * g.gamma[5]) * sign(det(self.e))
-    #         three = g.eval(e_rho_x_plus_mu * e_sig_x_plus_mu *
-    #                        g.gamma[5] * U_nu_x_plus_mu *
-    #                        g.adj(U_mu_x_plus_nu) * g.adj(self.U[nu])) * sign_x_plus_mu
-    #         four = g.eval(e_rho_x_plus_mu * e_sig_x_plus_mu *
-    #                       g.gamma[5] * g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
-    #                       g.adj(g.cshift(self.U[mu], nu, -1)) *
-    #                       U_nu_x_minus_nu) * sign_x_plus_mu
-    #         five = g.eval(U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
-    #                       e_rho_x_plus_nu * e_sig_x_plus_nu *
-    #                       g.gamma[5] * g.adj(self.U[nu])) * sign_x_plus_nu
-    #         six = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
-    #                      g.adj(g.cshift(self.U[mu], nu, -1)) *
-    #                      e_rho_x_minus_nu * e_sig_x_minus_nu *
-    #                      g.gamma[5] * U_nu_x_minus_nu) * sign_x_minus_nu
-    #         seven = g.eval(U_nu_x_plus_mu * g.cshift(e_rho_x_plus_mu, nu, 1) *
-    #                        g.cshift(e_sig_x_plus_mu, nu, 1) * g.gamma[5] *
-    #                        g.adj(U_mu_x_plus_nu) *
-    #                        g.adj(self.U[nu])) * g.cshift(sign_x_plus_mu, nu, 1)
-    #         eight = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
-    #                        g.cshift(e_rho_x_plus_mu, nu, -1) *
-    #                        g.cshift(e_sig_x_plus_mu, nu, -1) * g.gamma[5] *
-    #                        g.adj(g.cshift(self.U[mu], nu, -1)) *
-    #                        U_nu_x_minus_nu) * g.cshift(sign_x_plus_mu, nu, -1)
-    #         Emu += 0.125 * val * (one - two + three - four + five - six + seven - eight)
-    #         # Emutilde part
-    #         # one = g.eval(eslash[rho] * eslash[sig] * g.gamma[5] *
-    #         #        links[nu] * U_mu_x_plus_nu * g.adj(U_nu_x_plus_mu)) * sign(det(e))
-    #         # two = g.eval(eslash[rho] * eslash[sig] * g.gamma[5] *
-    #         #        g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
-    #         #        g.cshift(U_nu_x_plus_mu, nu, -1)) * sign(det(e))
-    #         # three = g.eval(links[nu] * U_mu_x_plus_nu * g.adj(U_nu_x_plus_mu) *
-    #         #          e_rho_x_plus_mu * e_sig_x_plus_mu
-    #         #          * g.gamma[5]) * sign_x_plus_mu
-    #         # four = g.eval(g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
-    #         #         g.cshift(U_nu_x_plus_mu, nu, -1) * e_rho_x_plus_mu *
-    #         #         e_sig_x_plus_mu * g.gamma[5]) * sign_x_plus_mu
-    #         # five = g.eval(links[nu] * e_rho_x_plus_nu * e_sig_x_plus_nu
-    #         #         * g.gamma[5] * U_mu_x_plus_nu *
-    #         #         g.adj(U_nu_x_plus_mu)) * sign_x_plus_nu
-    #         # six = g.eval(g.adj(U_nu_x_minus_nu) * e_rho_x_minus_nu *
-    #         #        e_sig_x_minus_nu * g.gamma[5] * g.cshift(links[mu], nu, -1) *
-    #         #        g.cshift(U_nu_x_plus_mu, nu, -1)) * sign_x_minus_nu
-    #         # seven = g.eval(links[nu] * U_mu_x_plus_nu * g.cshift(e_rho_x_plus_nu, mu, 1) *
-    #         #          g.cshift(e_sig_x_plus_nu, mu, 1) * g.gamma[5] *
-    #         #          g.adj(U_nu_x_plus_mu)) * g.cshift(sign_x_plus_mu, nu, 1)
-    #         # eight = g.eval(g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
-    #         #          g.cshift(e_rho_x_plus_mu, nu, -1) *
-    #         #          g.cshift(e_sig_x_plus_mu, nu, -1) * g.gamma[5] *
-    #         #          g.cshift(U_nu_x_plus_mu, nu, -1)) * g.cshift(sign_x_plus_mu, nu, -1)
-    #         # Emutilde += 0.125 * val * (- one + two - three + four - five + six - seven + eight)
-    #     # return (Emu, Emutilde)
-    #     return Emu
+#             one = g.eval(U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
+#                          g.adj(self.U[nu]) * eslash[rho] * eslash[sig] *
+#                          g.gamma[5]) * sign(det(self.e))
+#             two = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
+#                          g.adj(g.cshift(self.U[mu], nu, -1)) * U_nu_x_minus_nu *
+#                          eslash[rho] * eslash[sig] * g.gamma[5]) * sign(det(self.e))
+#             three = g.eval(e_rho_x_plus_mu * e_sig_x_plus_mu *
+#                            g.gamma[5] * U_nu_x_plus_mu *
+#                            g.adj(U_mu_x_plus_nu) * g.adj(self.U[nu])) * sign_x_plus_mu
+#             four = g.eval(e_rho_x_plus_mu * e_sig_x_plus_mu *
+#                           g.gamma[5] * g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
+#                           g.adj(g.cshift(self.U[mu], nu, -1)) *
+#                           U_nu_x_minus_nu) * sign_x_plus_mu
+#             five = g.eval(U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
+#                           e_rho_x_plus_nu * e_sig_x_plus_nu *
+#                           g.gamma[5] * g.adj(self.U[nu])) * sign_x_plus_nu
+#             six = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
+#                          g.adj(g.cshift(self.U[mu], nu, -1)) *
+#                          e_rho_x_minus_nu * e_sig_x_minus_nu *
+#                          g.gamma[5] * U_nu_x_minus_nu) * sign_x_minus_nu
+#             seven = g.eval(U_nu_x_plus_mu * g.cshift(e_rho_x_plus_mu, nu, 1) *
+#                            g.cshift(e_sig_x_plus_mu, nu, 1) * g.gamma[5] *
+#                            g.adj(U_mu_x_plus_nu) *
+#                            g.adj(self.U[nu])) * g.cshift(sign_x_plus_mu, nu, 1)
+#             eight = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
+#                            g.cshift(e_rho_x_plus_mu, nu, -1) *
+#                            g.cshift(e_sig_x_plus_mu, nu, -1) * g.gamma[5] *
+#                            g.adj(g.cshift(self.U[mu], nu, -1)) *
+#                            U_nu_x_minus_nu) * g.cshift(sign_x_plus_mu, nu, -1)
+#             Emu += 0.125 * val * (one - two + three - four + five - six + seven - eight)
+#             # Emutilde part
+#             # one = g.eval(eslash[rho] * eslash[sig] * g.gamma[5] *
+#             #        links[nu] * U_mu_x_plus_nu * g.adj(U_nu_x_plus_mu)) * sign(det(e))
+#             # two = g.eval(eslash[rho] * eslash[sig] * g.gamma[5] *
+#             #        g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
+#             #        g.cshift(U_nu_x_plus_mu, nu, -1)) * sign(det(e))
+#             # three = g.eval(links[nu] * U_mu_x_plus_nu * g.adj(U_nu_x_plus_mu) *
+#             #          e_rho_x_plus_mu * e_sig_x_plus_mu
+#             #          * g.gamma[5]) * sign_x_plus_mu
+#             # four = g.eval(g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
+#             #         g.cshift(U_nu_x_plus_mu, nu, -1) * e_rho_x_plus_mu *
+#             #         e_sig_x_plus_mu * g.gamma[5]) * sign_x_plus_mu
+#             # five = g.eval(links[nu] * e_rho_x_plus_nu * e_sig_x_plus_nu
+#             #         * g.gamma[5] * U_mu_x_plus_nu *
+#             #         g.adj(U_nu_x_plus_mu)) * sign_x_plus_nu
+#             # six = g.eval(g.adj(U_nu_x_minus_nu) * e_rho_x_minus_nu *
+#             #        e_sig_x_minus_nu * g.gamma[5] * g.cshift(links[mu], nu, -1) *
+#             #        g.cshift(U_nu_x_plus_mu, nu, -1)) * sign_x_minus_nu
+#             # seven = g.eval(links[nu] * U_mu_x_plus_nu * g.cshift(e_rho_x_plus_nu, mu, 1) *
+#             #          g.cshift(e_sig_x_plus_nu, mu, 1) * g.gamma[5] *
+#             #          g.adj(U_nu_x_plus_mu)) * g.cshift(sign_x_plus_mu, nu, 1)
+#             # eight = g.eval(g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
+#             #          g.cshift(e_rho_x_plus_mu, nu, -1) *
+#             #          g.cshift(e_sig_x_plus_mu, nu, -1) * g.gamma[5] *
+#             #          g.cshift(U_nu_x_plus_mu, nu, -1)) * g.cshift(sign_x_plus_mu, nu, -1)
+#             # Emutilde += 0.125 * val * (- one + two - three + four - five + six - seven + eight)
+#         # return (Emu, Emutilde)
+#         return Emu
 
     # def eenv(self, eslash, mu):
     #     Vmu = g.mspin(self.grid)
@@ -262,25 +408,7 @@ class Simulation:
     #         want += B
     #     return want
 
-    # def make_Us(self,):
-    #     # Mike's links
-    #     # make log U
-    #     lnU = [g.mspin(self.grid) for mu in range(4)]
-    #     for i in range(4):
-    #         lnU[i][:] = 0
-    #     # gamma commutators
-    #     Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
-    #               [a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
-    #     omega = [ [ [ self.rng.normal(g.complex(self.grid)) for b in range(0,4)]
-    #                 for a in range(0,4) ] for mu in range(0, 4) ]
-    #     for mu in range(0, 4):
-    #         for a in range(0, 4):
-    #             for b in range(0, 4):
-    #                 lnU[mu] += Ji2[a][b]*omega[mu][a][b]
-    #     # the Us
-    #     self.U = [ g.mspin(self.grid) for mu in range(0,4) ]
-    #     for mu in range(0,4):
-    #         self.U[mu] = g.matrix.exp(lnU[mu])
+    
 
     
 
@@ -453,3 +581,133 @@ def three_levi():
             else:
                 arr[i][(j,k,l)] = -1
     return arr
+
+if __name__ == "__main__":
+    levi = make_levi()
+    levi3 = three_levi()
+
+
+    # beta = g.default.get_float("--beta", 5.96)
+    kappa = g.default.get_float("--kappa", 1.0)
+    lam = g.default.get_float("--lambda", 1.0)
+
+    g.default.set_verbose("omf4")
+
+    grid = g.grid([4, 4, 4, 8], g.double)
+    rng = g.random("hmc-pure-gauge")
+
+    # U = g.qcd.gauge.unit(grid)
+    U = make_Us()
+    e = [[rng.normal(g.real(grid)) for a in range(4)] for mu in range(4)]
+
+    # rng.normal_element(U)
+
+    # conjugate momenta
+    # mom = g.group.cartesian(U)
+    Umom = [g.mspin(grid) for mu in range(4)]
+    # print(Umom[0][0,0,0,0])
+    # print(type(Umom[0]))
+    random_algebra_element(Umom)
+    # print(type(Umom[0]))
+    # assert False
+    # print(Umom[0][0,0,0,0])
+    # assert False
+    # emom = g.group.carteasian(e)
+    # mom = make_Us()
+    # rng.normal_element(V)
+
+    # Log
+    g.message(f"Lattice = {grid.fdimensions}")
+    g.message("Actions:")
+    # action for conj. momenta
+    a0 = g.qcd.scalar.action.mass_term()
+    g.message(f" - {a0.__name__}")
+
+    # wilson action
+    # a1 = g.qcd.gauge.action.wilson(beta)
+    a1 = Ggauge(kappa)
+    g.message(f" - {a1.__name__}")
+
+
+    def hamiltonian():
+        return a0(Umom) + a1(U, e)
+
+    # print(hamiltonian())
+    # assert False
+    # molecular dynamics
+    sympl = g.algorithms.integrator.symplectic
+
+    # print(a1.Ugradient(U, e, U))
+    # assert False
+
+    ip = sympl.update_p(Umom, lambda: a1.Ugradient(U, e, U))
+    # print(ip)
+    # assert False
+    # print(a0.gradient(Umom, Umom))
+    # assert False
+    iq = sympl.update_q(U, lambda: a0.gradient(Umom, Umom))
+    # print(iq)
+    # assert False
+    # integrator
+    mdint = sympl.OMF4(5, ip, iq)
+    g.message(f"Integration scheme:\n{mdint}")
+    # assert False
+    # metropolis
+    metro = g.algorithms.markov.metropolis(rng)
+
+    # MD units
+    tau = 2.0
+    g.message(f"tau = {tau} MD units")
+
+
+    def hmc(tau, mom):
+        # rng.normal_element(mom)
+        random_algebra_element(mom)
+        # mom = make_Us()
+        accrej = metro(U)
+        h0 = hamiltonian()
+        # print(h0)
+        # assert False
+        mdint(tau)
+        h1 = hamiltonian()
+        print(h1)
+        assert False
+        return [accrej(h1, h0), h1 - h0]
+
+
+    # thermalization
+    ntherm = 100
+    for i in range(1, 11):
+        h = []
+        timer = g.timer("hmc")
+        for _ in range(ntherm // 10):
+            timer("trajectory")
+            h += [hmc(tau, Umom)]
+            print(h)
+            assert False
+        h = np.array(h)
+        timer()
+        g.message(f"{i*10} % of thermalization completed")
+        g.message(timer)
+        g.message(
+            f"Plaquette = {g.qcd.gauge.plaquette(U)}, Acceptance = {np.mean(h[:,0]):.2f}, |dH| = {np.mean(np.abs(h[:,1])):.4e}"
+        )
+    assert False
+
+    # production
+    history = []
+    data = []
+    n = 100
+    dtrj = 10
+    for i in range(n):
+        for k in range(dtrj):
+            history += [hmc(tau, mom)]
+        data += [g.qcd.gauge.plaquette(U)]
+        g.message(f"Trajectory {i}, {history[-1]}")
+
+    history = numpy.array(history)
+    g.message(f"Acceptance rate = {numpy.mean(history[:,0]):.2f}")
+    g.message(f"<|dH|> = {numpy.mean(numpy.abs(history[:,1])):.4e}")
+
+    data = numpy.array(data)
+    g.message(f"<plaq>   = {numpy.mean(data[:,0])}")
