@@ -22,7 +22,7 @@ def make_eslash(e):
 
 
 class Gbase(differentiable_functional):
-    def Ugradient(self, U, e, dU):
+    def Ugradient(self, U, eslash, dU):
         # Eq. (1.3) and Appendix A of https://link.springer.com/content/pdf/10.1007/JHEP08(2010)071.pdf
         # S(Umu) = -2/g^2 Re trace(Umu * staple)
         # dS(Umu) = lim_{eps->0} Ta ( S(e^{eps Ta} Umu) - S(Umu) ) / eps  with  \Tr[T_a T_b]=-1/2 \delta_{ab}
@@ -38,7 +38,7 @@ class Gbase(differentiable_functional):
         dS = []
         for Umu in dU:
             mu = U.index(Umu)
-            dSdU_mu = self.staple(U, e, mu)
+            dSdU_mu = self.staple(U, eslash, mu)
             # NOTE why is there an adj in (qcd version of) U * staple?
             # dSdU_mu @= g.qcd.gauge.project.traceless_anti_hermitian(g(Umu * g.adj(dSdU_mu))) * (
             #     1.0 / 8.0 / 1j
@@ -51,7 +51,7 @@ class Gbase(differentiable_functional):
             dS.append(dSdU_mu)
         return dS
 
-    def egradient(self, U, e):
+    def egradient(self, U, eslash):
         # Eq. (1.3) and Appendix A of https://link.springer.com/content/pdf/10.1007/JHEP08(2010)071.pdf
         # S(Umu) = -2/g^2 Re trace(Umu * staple)
         # dS(Umu) = lim_{eps->0} Ta ( S(e^{eps Ta} Umu) - S(Umu) ) / eps  with  \Tr[T_a T_b]=-1/2 \delta_{ab}
@@ -65,18 +65,25 @@ class Gbase(differentiable_functional):
         # dS(Umu) = 1/g^2 tracelss_anti_hermitian(Umu * staple)
         # define staple here as adjoint
         dS = []
-        eslash = make_eslash(e)
+        # eslash = make_eslash(e)
         de = eslash
+        one = g.mspin(grid)
+        two = g.mspin(grid)
+        three = g.mspin(grid)
+        one[:] = 0
+        two[:] = 0
+        three[:] = 0
+        # assert False
         for emu in de:
             mu = eslash.index(emu)
-            dSde_mu = self.eenv(U, e, mu)
+            dSde_mu = self.eenv(U, eslash, mu)
             # NOTE why is there an adj in (qcd version of) U * staple?
-            one = g.qcd.gauge.project.traceless_anti_hermitian(g(emu * dSde_mu)) * (
+            one @= g.qcd.gauge.project.traceless_anti_hermitian(g(emu * dSde_mu)) * (
                 -1.0 / 1j
             )
-            two = g.qcd.gauge.project.traceless_hermitian(g(emu * dSde_mu))
-            three = g.identity(g.mspin(grid)) * g.trace(g(emu * dSde_mu))
-            dSde_mu @= one + two + three
+            two @= g.qcd.gauge.project.traceless_hermitian(g(emu * dSde_mu))
+            three @= g.identity(g.mspin(grid)) * g.trace(g(emu * dSde_mu))
+            dSde_mu = one + two + three
             dSde_mu.otype = emu.otype.cartesian()
             dS.append(dSde_mu)
         return dS
@@ -119,6 +126,14 @@ def random_algebra_element(lnU, scale=1.0):
 
 #     def __call__(self, U, e):
 
+def alt_dete(eslash):
+    """alternate dete using eslash"""
+    vol = g.real(grid)
+    vol[:] = 0
+    for idx, val in levi.items():
+        mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
+        vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig]) * val
+    return g.eval(vol / 96.)
 
 
 class Ggauge(Gbase):
@@ -128,7 +143,7 @@ class Ggauge(Gbase):
         # self.alpha = alpha
         self.__name__ = f"gravity({kappa},{lam})"
 
-    def __call__(self, U, e):
+    def __call__(self, U, eslash):
         # Let beta = 2 ndim_repr / g^2
         #
         # S(U) = -beta sum_{mu>nu} Re[Tr[P_{mu,nu}]]/ndim_repr        (only U-dependent part)
@@ -146,17 +161,20 @@ class Ggauge(Gbase):
         R[:] = 0
         vol = g.real(grid)
         vol[:] = 0
-        eslash = make_eslash(e)
+        # eslash = make_eslash(e)
         for idx, val in levi.items():
             mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
             Gmunu = g.qcd.gauge.field_strength(U, mu, nu)
             R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
             vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig]) * val
         # Rsq = R * R # g.component.pow(2)(R)
-        dete = det(e)
-        # dete = vol # is this dete?
+        # dete = det(e)
+        dete = g.eval(vol / 96.)
+        # print(type(dete))
+        # assert False
+        # dete = vol / 96 # is this dete?
         action = (sign(dete) * ((-1) * (self.kappa / 16) * R
-                                        + (self.lam / 96) * vol))
+                                        + self.lam * dete))
                                 # + self.alpha * Rsq * g.component.inv(dete) / 8))
         # action = (sign(dete) * ((-1) * (self.kappa / 16) * R))
         return np.real(np.sum(g.eval(action)[:]))
@@ -171,8 +189,8 @@ class Ggauge(Gbase):
     #     scale = self.beta / U[0].otype.shape[0]
     #     return g(scale * st)
 
-    def eenv(self, U, e, mu):
-        eslash = make_eslash(e)
+    def eenv(self, U, eslash, mu):
+        # eslash = make_eslash(e)
         Vmu = g.mspin(grid)
         Vmu[:] = 0
         Wmu = g.mspin(grid)
@@ -183,19 +201,20 @@ class Ggauge(Gbase):
                     g.qcd.gauge.field_strength(U, rho, sig) * val)
         return (self.lam / 96)*Vmu - (self.kappa / 16)*Wmu
 
-    def staple(self, U, e, mu):
+    def staple(self, U, eslash, mu):
         Emu = g.lattice(U[0])
         Emu[:] = 0
         # Emutilde = g.mspin(self.grid)
         # Emutilde[:] = 0
-        eslash = make_eslash(e)
-        sign_x_plus_mu = g.cshift(sign(det(e)), mu, 1)
+        # eslash = make_eslash(e)
+        dete = alt_dete(eslash)
+        sign_x_plus_mu = g.cshift(sign(dete), mu, 1)
         # print(eslash[mu])
         # assert False
         for (nu,rho,sig), val in levi3[mu].items():
             # print(nu,rho,sig, val)
-            sign_x_minus_nu = g.cshift(sign(det(e)), nu, -1)
-            sign_x_plus_nu = g.cshift(sign(det(e)), nu, 1)
+            sign_x_minus_nu = g.cshift(sign(dete), nu, -1)
+            sign_x_plus_nu = g.cshift(sign(dete), nu, 1)
             
             e_rho_x_plus_mu = g.cshift(eslash[rho], mu, 1)
             e_sig_x_plus_mu = g.cshift(eslash[sig], mu, 1)
@@ -210,10 +229,10 @@ class Ggauge(Gbase):
             
             one = g.eval(U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
                          g.adj(U[nu]) * eslash[rho] * eslash[sig] *
-                         g.gamma[5]) * sign(det(e))
+                         g.gamma[5]) * sign(dete)
             two = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
                          g.adj(g.cshift(U[mu], nu, -1)) * U_nu_x_minus_nu *
-                         eslash[rho] * eslash[sig] * g.gamma[5]) * sign(det(e))
+                         eslash[rho] * eslash[sig] * g.gamma[5]) * sign(dete)
             three = g.eval(e_rho_x_plus_mu * e_sig_x_plus_mu *
                            g.gamma[5] * U_nu_x_plus_mu *
                            g.adj(U_mu_x_plus_nu) * g.adj(U[nu])) * sign_x_plus_mu
@@ -600,10 +619,16 @@ def three_levi():
                 arr[i][(j,k,l)] = -1
     return arr
 
+# def random_four_matrix(emom):
+#     for mu in range(4):
+#         for a in range(4):
+#             emom[mu][a] = rng.normal(g.real(grid))
+
 def random_four_matrix(emom):
     for mu in range(4):
         for a in range(4):
-            emom[mu][a] = rng.normal(g.real(grid))
+            emom[mu] += g.gamma[a].tensor() * rng.normal(g.real(grid))
+        
 
 if __name__ == "__main__":
     levi = make_levi()
@@ -611,7 +636,7 @@ if __name__ == "__main__":
 
 
     kappa = g.default.get_float("--kappa", 1.0)
-    lam = g.default.get_float("--lambda", 1.0)
+    lam = g.default.get_float("--lambda", 2.0)
 
     g.default.set_verbose("omf4")
 
@@ -620,11 +645,13 @@ if __name__ == "__main__":
 
     U = make_Us()
     e = [[rng.normal(g.real(grid)) for a in range(4)] for mu in range(4)]
+    eslash = make_eslash(e)
+    del e
 
     # conjugate momenta
     Umom = [g.mspin(grid) for mu in range(4)]
     random_algebra_element(Umom)
-    emom = g.group.cartesian(e)
+    emom = g.group.cartesian(eslash)
 
 
     # Log
@@ -643,7 +670,7 @@ if __name__ == "__main__":
 
 
     def hamiltonian():
-        return a0(Umom) + a1(U, e) + a2(emom)
+        return a0(Umom) + a1(U, eslash) + a2(emom)
 
     # molecular dynamics
     sympl = g.algorithms.integrator.symplectic
@@ -651,20 +678,22 @@ if __name__ == "__main__":
     # print(a1.Ugradient(U, e, U))
     # assert False
 
-    ipU = sympl.update_p(Umom, lambda: a1.Ugradient(U, e, U))
+    ipU = sympl.update_p(Umom, lambda: a1.Ugradient(U, eslash, U))
     iqU = sympl.update_q(U, lambda: a0.gradient(Umom, Umom))
     mdintU = sympl.OMF4(5, ipU, iqU)
     g.message(f"Integration scheme:\n{mdintU}")
-    ipe = sympl.update_p(emom, lambda: a1.egradient(U, e))
-    iqe = sympl.update_q(e, lambda: a2.gradient(emom, emom))
+    ipe = sympl.update_p(emom, lambda: a1.egradient(U, eslash))
+    iqe = sympl.update_q(eslash, lambda: a2.gradient(emom, emom))
     mdinte = sympl.OMF4(5, ipe, iqe)
     g.message(f"Integration scheme:\n{mdinte}")
     # metropolis
     metro = g.algorithms.markov.metropolis(rng)
 
     # MD units
-    tau = 0.008
-    g.message(f"tau = {tau} MD units")
+    tauU = 0.008
+    taue = 0.001
+    g.message(f"tau U = {tauU} MD units")
+    g.message(f"tau e = {taue} MD units")
 
 
     def hmcU(tau, mom):
@@ -684,7 +713,7 @@ if __name__ == "__main__":
     
     def hmce(tau, mom):
         random_four_matrix(mom)
-        accrej = metro(e)
+        accrej = metro(eslash)
         h0 = hamiltonian()
         # print(h0)
         # assert False
@@ -699,24 +728,29 @@ if __name__ == "__main__":
     # thermalization
     ntherm = 100
     for i in range(1, 11):
-        h = []
+        hU = []
+        he = []
         timer = g.timer("hmc")
         for _ in range(ntherm // 10):
             timer("trajectory")
-            h += [hmcU(tau, Umom), hmce(tau, emom)]
+            hU += [hmcU(tauU, Umom)]
+            he += [hmce(taue, emom)]
             # print(h)
             # assert False
-        h = np.array(h)
+        hU = np.array(hU)
+        he = np.array(he)
+        # print(h.shape)
+        # assert False
         timer()
         g.message(f"{i*10} % of thermalization completed")
         g.message(timer)
         g.message(
-            f"Plaquette = {g.qcd.gauge.plaquette(U)}, Acceptance = {np.mean(h[:,0]):.2f}, |dH| = {np.mean(np.abs(h[:,1])):.4e}"
+            f"Plaquette = {g.qcd.gauge.plaquette(U)}, Acceptance = {np.mean(hU[:,0]):.2f}, |dH| = {np.mean(np.abs(hU[:,1])):.4e}"
         )
         g.message(
-            f"dete = {np.sum(det(e)[:])}, Acceptance = {np.mean(h[:,0]):.2f}, |dH| = {np.mean(np.abs(h[:,1])):.4e}"
+            f"dete = {np.sum(alt_dete(eslash)[:])}, Acceptance = {np.mean(he[:,0]):.2f}, |dH| = {np.mean(np.abs(he[:,1])):.4e}"
         )
-    assert False
+        assert False
 
     # production
     history = []
