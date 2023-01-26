@@ -11,6 +11,8 @@ class Simulation:
     def __init__(self, L):
         self.L = L # symmetric lattice
         self.grid = g.grid([self.L]*4, g.double) # make the lattice
+        self.link_acpt = [0]*1000
+        self.tet_acpt = [0]*1000
         g.message(self.grid)
         self.rng = g.random("seed string") # initialize random seed
 
@@ -22,18 +24,10 @@ class Simulation:
     def make_initial_mask(self,):
         self.starting_ones =  g.real(self.grid)
         self.starting_ones[:] = 0
-        # print(self.starting_ones[0,0,0,0])
-        # assert False
         nonzero_indices = range(0, self.L, 2)
-        # idx_filler = list()
         for i in it.product(nonzero_indices, repeat=4):
             id0, id1, id2, id3 = i
             self.starting_ones[id0, id1, id2, id3] = 1
-        # idx_filler = np.array(idx_filler)
-        # assert False
-        # self.starting_ones[idx_filler] = 0
-        # print(g.cshift(self.starting_ones, 0, 1))
-        # assert False
 
     def random_shift(self, scale=1.0):
         return self.rng.normal(g.real(self.grid), sigma=scale)
@@ -74,9 +68,13 @@ class Simulation:
             vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig]) * val
         Rsq += R * R # g.component.pow(2)(R)
         dete = det(self.e)
-        action = (sign(dete) * ((-1) * (self.kappa / 16) * R
-                                + (self.lam / 96) * vol
-                                + self.alpha * Rsq * g.component.inv(dete) / 64))
+        meas = g.component.log(g.component.abs(dete))
+        action = (sign(dete) * ((self.lam / 96) * vol
+                                -(self.kappa / 16) * R
+                                + (self.alpha * Rsq * g.component.inv(dete) / 64)
+                                - (self.K * meas)
+                                )
+                  )
         return action
 
     
@@ -247,6 +245,8 @@ class Simulation:
             self.rng.uniform_real(rn)
             accept = rn < prob
             accept *= self.mask
+            self.link_acpt.pop()
+            self.link_acpt.insert(np.sum(accept[:]) / np.sum(self.starting_ones[:]), 0)
             self.U[mu] @= g.where(accept, lp, lo)
             # print(links[mu][0,0,0,0], lo[0,0,0,0], lp[0,0,0,0])
             # print('==================')
@@ -275,12 +275,15 @@ class Simulation:
                 action_prime = self.compute_action()
                 # action_prime = self.compute_tet_action(mu)
                 # print(np.sum(g.eval(action_prime)[:]), np.sum(g.eval(action)[:]))
-                meas = g.component.pow(self.K)(g.component.abs(detep) * g.component.inv(g.component.abs(dete)))
-                prob = g.eval(g.component.exp(action - action_prime) * meas)
+                # meas = g.component.pow(self.K)(g.component.abs(detep) * g.component.inv(g.component.abs(dete)))
+                # prob = g.eval(g.component.exp(action - action_prime) * meas)
+                prob = g.eval(g.component.exp(action - action_prime))
                 rn = g.lattice(prob)
                 self.rng.uniform_real(rn)
                 accept = rn < prob
                 accept *= self.mask
+                self.tet_acpt.pop()
+                self.tet_acpt.insert(np.sum(accept[:]) / np.sum(self.starting_ones[:]), 0)
                 self.e[mu][a] @= g.where(accept, ep, eo)
                 # print(e[mu][a][0,0,0,0], eo[0,0,0,0], ep[0,0,0,0])
                 # print(np.sum(g.eval(compute_tet_action(links, e, mu))[:]))
@@ -299,10 +302,10 @@ class Simulation:
         self.K = K
         self.alpha = alpha
         # need to do this masking for even odd update
-        grid_eo = self.grid.checkerboarded(g.redblack)
-        self.mask_rb = g.complex(grid_eo)
-        self.mask_rb[:] = 1
-        self.mask = g.complex(self.grid)
+        # grid_eo = self.grid.checkerboarded(g.redblack)
+        # self.mask_rb = g.complex(grid_eo)
+        # self.mask_rb[:] = 1
+        # self.mask = g.complex(self.grid)
 
         self.measurements = list()
         for swp in range(nswps):
@@ -315,6 +318,8 @@ class Simulation:
         the_det = np.real(np.mean(det(self.e)[:]))
         act = np.real(np.sum(g.eval(self.compute_action())[:]) / self.L**4)
         self.measurements.append([plaq, R_2x1,the_det,act])
+        link_acceptance = np.mean(self.link_acpt)
+        tet_acceptance = np.mean(self.tet_acpt)
         # act2 = np.sum(g.eval(compute_action_check(U, e))[:])
         # # act2 = g.eval(compute_action_check(U, e))[0,0,0,0]
         # act1 = g.real(grid)
@@ -323,6 +328,7 @@ class Simulation:
         #     act1 += g.eval(compute_link_action(U, e, mu))
         # act1 = np.sum(act1[:])
         g.message(f"Metropolis {swp} has det = {the_det}, P = {plaq}, R_2x1 = {R_2x1}, act = {act}")
+        g.message(f"Metropolis {swp} has link acceptance = {link_acceptance}, and tetrad acceptance = {tet_acceptance}")
         if self.crosscheck:
             check_act = np.real(np.sum(g.eval(self.compute_action())[:]) / self.L**4)
             g.message(f"Cross check action = {check_act}")
