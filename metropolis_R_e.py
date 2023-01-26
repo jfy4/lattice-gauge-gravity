@@ -17,7 +17,23 @@ class Simulation:
         # make the tetrads
         self.e = [[self.rng.normal(g.real(self.grid)) for a in range(4)] for mu in range(4)]
         self.make_Us() # creates the Us
+        self.make_initial_mask()
         
+    def make_initial_mask(self,):
+        self.starting_ones =  g.real(self.grid)
+        self.starting_ones[:] = 0
+        # print(self.starting_ones[0,0,0,0])
+        # assert False
+        nonzero_indices = range(0, self.L, 2)
+        # idx_filler = list()
+        for i in it.product(nonzero_indices, repeat=4):
+            id0, id1, id2, id3 = i
+            self.starting_ones[id0, id1, id2, id3] = 1
+        # idx_filler = np.array(idx_filler)
+        # assert False
+        # self.starting_ones[idx_filler] = 0
+        # print(g.cshift(self.starting_ones, 0, 1))
+        # assert False
 
     def random_shift(self, scale=1.0):
         return self.rng.normal(g.real(self.grid), sigma=scale)
@@ -43,41 +59,24 @@ class Simulation:
         V = g.matrix.exp(lnV)
         return V
 
-    def compute_action_check(self,):
+    def compute_action(self,):
         R = g.real(self.grid)
         R[:] = 0
-        # Rsq = g.real(grid)
-        # Rsq[:] = 0
+        Rsq = g.real(self.grid)
+        Rsq[:] = 0
         vol = g.real(self.grid)
         vol[:] = 0
-        # GB = g.real(grid)
-        # GB[:] = 0
         eslash = self.make_eslash()
-        # eslash = [g.mspin(grid) for mu in range(4)]
-        # for mu in range(4):
-        #     for a in range(4):
-        #         eslash[mu] += g.gamma[a].tensor()*e[mu][a]
         for idx, val in levi.items():
-            # print(idx, val)
             mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
-            # Grhosig = g.qcd.gauge.field_strength(link, rho, sig)
             R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
-            # R += r
             vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig]) * val
-            #     GB += g.trace(g.gamma[5] * Gmunu * Grhosig) * val
-        Rsq = R * R # g.component.pow(2)(R)
-        # action = sign(det(e)) * ((-1) * (kappa / 16) * R +
-        #                                (lam / 96) * vol +
-        #                                alpha * Rsq +
-        #                                beta * GB)
-        # volp = np.mean(g.eval(vol)[:])
-        # g.message(f"vol = {volp}")
+        Rsq += R * R # g.component.pow(2)(R)
         dete = det(self.e)
         action = (sign(dete) * ((-1) * (self.kappa / 16) * R
                                 + (self.lam / 96) * vol
-                                + self.alpha * Rsq * g.component.inv(dete) / 8))
-        # action = R * sign(det(e))
+                                + self.alpha * Rsq * g.component.inv(dete) / 64))
         return action
 
     
@@ -226,8 +225,8 @@ class Simulation:
 
     def update_links(self,):
         for mu in range(4):
-            # action = compute_action(links, e)
-            action = self.compute_link_action(mu)
+            action = self.compute_action()
+            # action = self.compute_link_action(mu)
             # V = g.lattice(links[mu])
             V_eye = g.identity(self.U[mu])
             # g.message(V_eye)
@@ -240,8 +239,8 @@ class Simulation:
             lp = g.eval(V * lo)
             self.U[mu] = g.eval(V * lo)
             # links_prime[mu] = g.eval(V * links[mu])
-            # action_prime = compute_action(links_prime, e)
-            action_prime = self.compute_link_action(mu)
+            action_prime = self.compute_action()
+            # action_prime = self.compute_link_action(mu)
             prob = g.component.exp(action - action_prime)
             # g.message(prob)
             rn = g.lattice(prob)
@@ -256,8 +255,8 @@ class Simulation:
     def update_tetrads(self,):
         for mu in range(4):
             for a in range(4):
-                # action = compute_action(links, e)
-                action = self.compute_tet_action(mu)
+                action = self.compute_action()
+                # action = self.compute_tet_action(mu)
                 ii_eye = g.identity(self.e[mu][a])
                 ii = self.random_shift(scale=1.)
                 ii = g.where(self.mask, ii, ii_eye)
@@ -273,8 +272,8 @@ class Simulation:
                 detep = det(self.e)
                 # print(eo[0,0,0,0], e[mu][a][0,0,0,0])
                 # print(e[mu][a][0,0,0,0], e_prime[mu][a][0,0,0,0])
-                # action_prime = compute_action(links, e_prime)
-                action_prime = self.compute_tet_action(mu)
+                action_prime = self.compute_action()
+                # action_prime = self.compute_tet_action(mu)
                 # print(np.sum(g.eval(action_prime)[:]), np.sum(g.eval(action)[:]))
                 meas = g.component.pow(self.K)(g.component.abs(detep) * g.component.inv(g.component.abs(dete)))
                 prob = g.eval(g.component.exp(action - action_prime) * meas)
@@ -314,7 +313,7 @@ class Simulation:
         plaq = g.qcd.gauge.plaquette(self.U)
         R_2x1 = g.qcd.gauge.rectangle(self.U, 2, 1)
         the_det = np.real(np.mean(det(self.e)[:]))
-        act = np.real(np.sum(g.eval(self.compute_total_action())[:]) / self.L**4)
+        act = np.real(np.sum(g.eval(self.compute_action())[:]) / self.L**4)
         self.measurements.append([plaq, R_2x1,the_det,act])
         # act2 = np.sum(g.eval(compute_action_check(U, e))[:])
         # # act2 = g.eval(compute_action_check(U, e))[0,0,0,0]
@@ -325,7 +324,7 @@ class Simulation:
         # act1 = np.sum(act1[:])
         g.message(f"Metropolis {swp} has det = {the_det}, P = {plaq}, R_2x1 = {R_2x1}, act = {act}")
         if self.crosscheck:
-            check_act = np.real(np.sum(g.eval(self.compute_action_check())[:]) / self.L**4)
+            check_act = np.real(np.sum(g.eval(self.compute_action())[:]) / self.L**4)
             g.message(f"Cross check action = {check_act}")
         # act2 = np.mean(g.eval(compute_action_check(U, e))[:])
         # act1 = g.real(grid)
@@ -334,14 +333,19 @@ class Simulation:
         #     act1 += g.eval(compute_tet_action(U, e, mu))
         # act1 = np.mean(act1[:])
         # g.message(f"action1 = {act1}, action2 = {act2}")
-        for cb in [g.even, g.odd]:
-            self.mask[:] = 0
-            self.mask_rb.checkerboard(cb)
-            print(self.mask_rb)
-            g.set_checkerboard(self.mask, self.mask_rb)
-            print(self.mask)
-            assert False
+        for coord in it.product(range(2), repeat=4):
+            shift0, shift1, shift2, shift3 = coord
+            self.mask = g.cshift(g.cshift(g.cshift(g.cshift(self.starting_ones, 0, shift0), 1, shift1), 2, shift2), 3, shift3)
             self.update_fields()
+            # assert False
+        # for cb in [g.even, g.odd]:
+            # self.mask[:] = 0
+            # self.mask_rb.checkerboard(cb)
+            # print(self.mask_rb)
+            # g.set_checkerboard(self.mask, self.mask_rb)
+            # print(self.mask)
+            # assert False
+            # self.update_fields()
 
 
 
@@ -404,12 +408,12 @@ if __name__ == "__main__":
     # initialize lattice
     
     # parameters
-    kappa = 5.
-    lam = 5.
+    kappa = 1.
+    lam = 1.
     K = 0
-    alpha = 0
+    alpha = 1.
     L = 4
-    nswps = 1
+    nswps = 1000
     # alpha = 1
     # beta = 1
 
@@ -418,11 +422,11 @@ if __name__ == "__main__":
     levi3 = three_levi()
 
     lattice = Simulation(L)
-    lattice.run(nswps, kappa, lam, alpha, K, crosscheck=True)
+    lattice.run(nswps, kappa, lam, alpha, K, crosscheck=False)
     
     
-    # np.save("measure_nswps" + str(nswps) + "_K" + str(K) +
-    #         "_kappa" + str(kappa) + "_lam" + str(lam) +
-    #         ".npy", lattice.measurements)
+    np.save("measure_nswps" + str(nswps) + "_K" + str(K) +
+            "_kappa" + str(kappa) + "_lam" + str(lam) +
+            "_alpha" + str(alpha) + ".npy", lattice.measurements)
         
             
