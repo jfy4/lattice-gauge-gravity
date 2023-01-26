@@ -11,8 +11,8 @@ class Simulation:
     def __init__(self, L):
         self.L = L # symmetric lattice
         self.grid = g.grid([self.L]*4, g.double) # make the lattice
-        self.link_acpt = [0]*1000
-        self.tet_acpt = [0]*1000
+        self.link_acpt = [0]*100
+        self.tet_acpt = [0]*100
         g.message(self.grid)
         self.rng = g.random("seed string") # initialize random seed
 
@@ -228,7 +228,7 @@ class Simulation:
             # V = g.lattice(links[mu])
             V_eye = g.identity(self.U[mu])
             # g.message(V_eye)
-            V = self.random_links(scale=0.1)
+            V = self.random_links(scale=self.du_step)
             # g.message(V)
             V = g.where(self.mask, V, V_eye)
             lo = self.U[mu]
@@ -246,7 +246,7 @@ class Simulation:
             accept = rn < prob
             accept *= self.mask
             self.link_acpt.pop()
-            self.link_acpt.insert(np.sum(accept[:]) / np.sum(self.starting_ones[:]), 0)
+            self.link_acpt.insert(0, np.sum(accept[:]) / np.sum(self.starting_ones[:]))
             self.U[mu] @= g.where(accept, lp, lo)
             # print(links[mu][0,0,0,0], lo[0,0,0,0], lp[0,0,0,0])
             # print('==================')
@@ -258,7 +258,7 @@ class Simulation:
                 action = self.compute_action()
                 # action = self.compute_tet_action(mu)
                 ii_eye = g.identity(self.e[mu][a])
-                ii = self.random_shift(scale=1.)
+                ii = self.random_shift(scale=self.de_step)
                 ii = g.where(self.mask, ii, ii_eye)
                 eo = self.e[mu][a]
                 dete = det(self.e)
@@ -283,7 +283,7 @@ class Simulation:
                 accept = rn < prob
                 accept *= self.mask
                 self.tet_acpt.pop()
-                self.tet_acpt.insert(np.sum(accept[:]) / np.sum(self.starting_ones[:]), 0)
+                self.tet_acpt.insert(0, np.sum(accept[:]) / np.sum(self.starting_ones[:]))
                 self.e[mu][a] @= g.where(accept, ep, eo)
                 # print(e[mu][a][0,0,0,0], eo[0,0,0,0], ep[0,0,0,0])
                 # print(np.sum(g.eval(compute_tet_action(links, e, mu))[:]))
@@ -295,12 +295,14 @@ class Simulation:
         self.update_links()
         self.update_tetrads()
 
-    def run(self, nswps, kappa, lam, alpha, K, crosscheck=False):
+    def run(self, nswps, kappa, lam, alpha, K, du_step=0.5, de_step=0.5, crosscheck=False):
         self.crosscheck = crosscheck
         self.kappa = kappa
         self.lam = lam
         self.K = K
         self.alpha = alpha
+        self.du_step = du_step
+        self.de_step = de_step
         # need to do this masking for even odd update
         # grid_eo = self.grid.checkerboarded(g.redblack)
         # self.mask_rb = g.complex(grid_eo)
@@ -318,8 +320,8 @@ class Simulation:
         the_det = np.real(np.mean(det(self.e)[:]))
         act = np.real(np.sum(g.eval(self.compute_action())[:]) / self.L**4)
         self.measurements.append([plaq, R_2x1,the_det,act])
-        link_acceptance = np.mean(self.link_acpt)
-        tet_acceptance = np.mean(self.tet_acpt)
+        link_acceptance = np.real(np.mean(self.link_acpt))
+        tet_acceptance = np.real(np.mean(self.tet_acpt))
         # act2 = np.sum(g.eval(compute_action_check(U, e))[:])
         # # act2 = g.eval(compute_action_check(U, e))[0,0,0,0]
         # act1 = g.real(grid)
@@ -419,7 +421,9 @@ if __name__ == "__main__":
     K = 0
     alpha = 1.
     L = 4
-    nswps = 1000
+    nswps = 100
+    dU_step = 0.5
+    de_step = 0.5
     # alpha = 1
     # beta = 1
 
@@ -428,11 +432,11 @@ if __name__ == "__main__":
     levi3 = three_levi()
 
     lattice = Simulation(L)
-    lattice.run(nswps, kappa, lam, alpha, K, crosscheck=False)
+    lattice.run(nswps, kappa, lam, alpha, K, dU_step, de_step)
     
     
-    np.save("measure_nswps" + str(nswps) + "_K" + str(K) +
-            "_kappa" + str(kappa) + "_lam" + str(lam) +
-            "_alpha" + str(alpha) + ".npy", lattice.measurements)
+    # np.save("measure_nswps" + str(nswps) + "_K" + str(K) +
+    #         "_kappa" + str(kappa) + "_lam" + str(lam) +
+    #         "_alpha" + str(alpha) + ".npy", lattice.measurements)
         
             
