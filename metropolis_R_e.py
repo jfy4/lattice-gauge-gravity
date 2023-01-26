@@ -337,7 +337,10 @@ class Simulation:
         for cb in [g.even, g.odd]:
             self.mask[:] = 0
             self.mask_rb.checkerboard(cb)
+            print(self.mask_rb)
             g.set_checkerboard(self.mask, self.mask_rb)
+            print(self.mask)
+            assert False
             self.update_fields()
 
 
@@ -418,8 +421,8 @@ if __name__ == "__main__":
     lattice.run(nswps, kappa, lam, alpha, K, crosscheck=True)
     
     
-    np.save("measure_nswps" + str(nswps) + "_K" + str(K) +
-            "_kappa" + str(kappa) + "_lam" + str(lam) +
-            ".npy", lattice.measurements)
+    # np.save("measure_nswps" + str(nswps) + "_K" + str(K) +
+    #         "_kappa" + str(kappa) + "_lam" + str(lam) +
+    #         ".npy", lattice.measurements)
         
             
