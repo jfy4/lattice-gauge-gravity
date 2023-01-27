@@ -319,7 +319,7 @@ class Simulation:
         R_2x1 = g.qcd.gauge.rectangle(self.U, 2, 1)
         the_det = np.real(np.mean(det(self.e)[:]))
         act = np.real(np.sum(g.eval(self.compute_action())[:]) / self.L**4)
-        self.measurements.append([plaq, R_2x1,the_det,act])
+        self.measurements.append([plaq, R_2x1, the_det, act])
         link_acceptance = np.real(np.mean(self.link_acpt))
         tet_acceptance = np.real(np.mean(self.tet_acpt))
         # act2 = np.sum(g.eval(compute_action_check(U, e))[:])
@@ -424,8 +424,6 @@ if __name__ == "__main__":
     nswps = 100
     dU_step = 0.5
     de_step = 0.5
-    # alpha = 1
-    # beta = 1
 
     # make the levi tensors
     levi = make_levi()
