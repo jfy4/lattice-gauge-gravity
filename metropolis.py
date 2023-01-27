@@ -50,7 +50,6 @@ class Simulation:
         return eslash
 
     def random_links(self, scale=1.0):
-        """ Make random link variables in SU(2)xSU(2)."""
         Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
                   [a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
         lnV = g.mspin(self.grid) 
@@ -210,6 +209,7 @@ class Simulation:
         return want
 
     def make_Us(self,):
+        """ Make random link variables in SU(2)xSU(2)."""
         # Mike's links
         # make log U
         lnU = [g.mspin(self.grid) for mu in range(4)]
@@ -232,6 +232,7 @@ class Simulation:
     
 
     def update_links(self,):
+        """ Metropolis update for the link variables."""
         for mu in range(4):
             action = self.compute_action()
             # action = self.compute_link_action(mu)
@@ -263,15 +264,19 @@ class Simulation:
         
         
     def update_tetrads(self,):
+        """ Metropolis update for the tetrad variables."""
         for mu in range(4):
             for a in range(4):
                 action = self.compute_action()
                 # action = self.compute_tet_action(mu)
-                ii_eye = g.identity(self.e[mu][a])
+                ii_eye = g.lattice(self.e[mu][a])
+                ii_eye[:] = 0
                 ii = self.random_shift(scale=self.einc)
                 ii = g.where(self.mask, ii, ii_eye)
+                # print(ii[:])
+                # assert False
                 eo = self.e[mu][a]
-                dete = det(self.e)
+                # dete = det(self.e)
                 # print(eo[0,0,0,0])
                 ep = g.eval(ii + eo)
                 # print(ep[0,0,0,0])
@@ -279,7 +284,7 @@ class Simulation:
                 # assert False
                 # e_prime = 1
                 self.e[mu][a] = g.eval(ii + eo)
-                detep = det(self.e)
+                # detep = det(self.e)
                 # print(eo[0,0,0,0], e[mu][a][0,0,0,0])
                 # print(e[mu][a][0,0,0,0], e_prime[mu][a][0,0,0,0])
                 action_prime = self.compute_action()
@@ -298,14 +303,17 @@ class Simulation:
                 # print(e[mu][a][0,0,0,0], eo[0,0,0,0], ep[0,0,0,0])
                 # print(np.sum(g.eval(compute_tet_action(links, e, mu))[:]))
                 # print('==================')
-                
+
+
             
             
     def update_fields(self,):
+        """ Update the links and the tetrads."""
         self.update_links()
         self.update_tetrads()
 
     def run(self, nswps, kappa, lam, alpha, K, uacpt_rate=0.6, eacpt_rate=0.6, crosscheck=False):
+        """ Runs the Metropolis algorithm."""
         self.crosscheck = crosscheck
         self.kappa = kappa
         self.lam = lam
@@ -313,23 +321,19 @@ class Simulation:
         self.alpha = alpha
         self.Uinc = 0.5
         self.einc = 0.5
-        self.du_step = 0.01
-        self.de_step = 0.01
+        self.du_step = 0.001
+        self.de_step = 0.001
         self.target_u_acpt = uacpt_rate
         self.target_e_acpt = eacpt_rate
-        
-        # need to do this masking for even odd update
-        # grid_eo = self.grid.checkerboarded(g.redblack)
-        # self.mask_rb = g.complex(grid_eo)
-        # self.mask_rb[:] = 1
-        # self.mask = g.complex(self.grid)
-
+        self.swp_count = 0
         self.measurements = list()
-        for swp in range(nswps):
-            # print(swp)
-            self.sweep(swp)
+        
+        while True:
+            self.sweep(self.swp_count)
+            self.swp_count += 1
 
     def sweep(self, swp):
+        """ Performs a single sweep of the lattice for the links and tetrads."""
         plaq = g.qcd.gauge.plaquette(self.U)
         R_2x1 = g.qcd.gauge.rectangle(self.U, 2, 1)
         the_det = np.real(np.mean(det(self.e)[:]))
@@ -337,12 +341,15 @@ class Simulation:
         self.measurements.append([plaq, R_2x1, the_det, act])
         link_acceptance = np.real(np.mean(self.link_acpt))
         tet_acceptance = np.real(np.mean(self.tet_acpt))
+        # print(abs(link_acceptance - self.target_u_acpt), link_acceptance, self.target_u_acpt, self.Uinc)
+        #print(abs(tet_acceptance - self.target_e_acpt))
         if abs(link_acceptance - self.target_u_acpt) < 0.02:
             pass
         elif link_acceptance < self.target_u_acpt:
             self.Uinc -= self.du_step
         else:
             self.Uinc += self.du_step
+            
         if abs(tet_acceptance - self.target_e_acpt) < 0.02:
             pass
         elif tet_acceptance < self.target_e_acpt:
@@ -351,6 +358,7 @@ class Simulation:
             self.einc += self.de_step
         g.message(f"Metropolis {swp} has det = {the_det}, P = {plaq}, R_2x1 = {R_2x1}, act = {act}")
         g.message(f"Metropolis {swp} has link acceptance = {link_acceptance}, and tetrad acceptance = {tet_acceptance}")
+        g.message(f"Metropolis {swp} has link step = {self.Uinc}, and tetrad step = {self.einc}")
         for coord in it.product(range(2), repeat=4):
             shift0, shift1, shift2, shift3 = coord
             self.mask = g.cshift(g.cshift(g.cshift(g.cshift(self.starting_ones, 0, shift0), 1, shift1), 2, shift2), 3, shift3)
@@ -363,6 +371,7 @@ class Simulation:
 
 
 def det(e):
+    """ Computes the determinant of the tetrad."""
     want = g.lattice(e[0][0])
     want[:] = 0
     for idx, val in levi.items():
@@ -372,6 +381,7 @@ def det(e):
     return want
 
 def sign(x):
+    """ Computes the sign of a lattice object."""
     y = g.lattice(x)
     y[:] = 0
     plus = g.lattice(x)
@@ -385,6 +395,7 @@ def sign(x):
 
 
 def make_levi():
+    """ Makes the 4d Levi-Civita tensor."""
     arr = dict()
     for i,j,k,l in it.product(range(4), repeat=4):
         prod = (i-j)*(i-k)*(i-l)*(j-k)*(j-l)*(k-l)
@@ -398,6 +409,7 @@ def make_levi():
     return arr
 
 def three_levi():
+    """ Makes the 4d Levi-Civita tensor with one index fixed.""" 
     arr = {i:dict() for i in range(4)}
     for i,j,k,l in it.product(range(4), repeat=4):
         prod = (i-j)*(i-k)*(i-l)*(j-k)*(j-l)*(k-l)
@@ -423,15 +435,15 @@ if __name__ == "__main__":
     alpha = 1.
     L = 4
     nswps = 100
-    dU_step = 0.5
-    de_step = 0.5
+    # dU_step = 0.5
+    # de_step = 0.5
 
     # make the levi tensors
     levi = make_levi()
     levi3 = three_levi()
 
     lattice = Simulation(L)
-    lattice.run(nswps, kappa, lam, alpha, K, dU_step, de_step)
+    lattice.run(nswps, kappa, lam, alpha, K)
     
     
     # np.save("measure_nswps" + str(nswps) + "_K" + str(K) +
