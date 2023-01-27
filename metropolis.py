@@ -18,10 +18,17 @@ class Simulation:
 
         # make the tetrads
         self.e = [[self.rng.normal(g.real(self.grid)) for a in range(4)] for mu in range(4)]
-        self.make_Us() # creates the Us
+        # make the Us
+        self.make_Us()
+        # make the checkerboard mask
         self.make_initial_mask()
         
     def make_initial_mask(self,):
+        """
+        Makes a checkerboard mask such that every other site in
+        every direction is revealed.  Note this is not the bi-partite
+        split.
+        """
         self.starting_ones =  g.real(self.grid)
         self.starting_ones[:] = 0
         nonzero_indices = range(0, self.L, 2)
@@ -30,6 +37,7 @@ class Simulation:
             self.starting_ones[id0, id1, id2, id3] = 1
 
     def random_shift(self, scale=1.0):
+        """ Create random numbers from the normal distribution."""
         return self.rng.normal(g.real(self.grid), sigma=scale)
     
     def make_eslash(self,):
@@ -42,6 +50,7 @@ class Simulation:
         return eslash
 
     def random_links(self, scale=1.0):
+        """ Make random link variables in SU(2)xSU(2)."""
         Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
                   [a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
         lnV = g.mspin(self.grid) 
@@ -54,6 +63,7 @@ class Simulation:
         return V
 
     def compute_action(self,):
+        """ Compute the gravity action site-wise."""
         R = g.real(self.grid)
         R[:] = 0
         Rsq = g.real(self.grid)
@@ -228,7 +238,7 @@ class Simulation:
             # V = g.lattice(links[mu])
             V_eye = g.identity(self.U[mu])
             # g.message(V_eye)
-            V = self.random_links(scale=self.du_step)
+            V = self.random_links(scale=self.Uinc)
             # g.message(V)
             V = g.where(self.mask, V, V_eye)
             lo = self.U[mu]
@@ -258,7 +268,7 @@ class Simulation:
                 action = self.compute_action()
                 # action = self.compute_tet_action(mu)
                 ii_eye = g.identity(self.e[mu][a])
-                ii = self.random_shift(scale=self.de_step)
+                ii = self.random_shift(scale=self.einc)
                 ii = g.where(self.mask, ii, ii_eye)
                 eo = self.e[mu][a]
                 dete = det(self.e)
@@ -295,14 +305,19 @@ class Simulation:
         self.update_links()
         self.update_tetrads()
 
-    def run(self, nswps, kappa, lam, alpha, K, du_step=0.5, de_step=0.5, crosscheck=False):
+    def run(self, nswps, kappa, lam, alpha, K, uacpt_rate=0.6, eacpt_rate=0.6, crosscheck=False):
         self.crosscheck = crosscheck
         self.kappa = kappa
         self.lam = lam
         self.K = K
         self.alpha = alpha
-        self.du_step = du_step
-        self.de_step = de_step
+        self.Uinc = 0.5
+        self.einc = 0.5
+        self.du_step = 0.01
+        self.de_step = 0.01
+        self.target_u_acpt = uacpt_rate
+        self.target_e_acpt = eacpt_rate
+        
         # need to do this masking for even odd update
         # grid_eo = self.grid.checkerboarded(g.redblack)
         # self.mask_rb = g.complex(grid_eo)
@@ -322,38 +337,24 @@ class Simulation:
         self.measurements.append([plaq, R_2x1, the_det, act])
         link_acceptance = np.real(np.mean(self.link_acpt))
         tet_acceptance = np.real(np.mean(self.tet_acpt))
-        # act2 = np.sum(g.eval(compute_action_check(U, e))[:])
-        # # act2 = g.eval(compute_action_check(U, e))[0,0,0,0]
-        # act1 = g.real(grid)
-        # act1[:] = 0
-        # for mu in range(4):
-        #     act1 += g.eval(compute_link_action(U, e, mu))
-        # act1 = np.sum(act1[:])
+        if abs(link_acceptance - self.target_u_acpt) < 0.02:
+            pass
+        elif link_acceptance < self.target_u_acpt:
+            self.Uinc -= self.du_step
+        else:
+            self.Uinc += self.du_step
+        if abs(tet_acceptance - self.target_e_acpt) < 0.02:
+            pass
+        elif tet_acceptance < self.target_e_acpt:
+            self.einc -= self.de_step
+        else:
+            self.einc += self.de_step
         g.message(f"Metropolis {swp} has det = {the_det}, P = {plaq}, R_2x1 = {R_2x1}, act = {act}")
         g.message(f"Metropolis {swp} has link acceptance = {link_acceptance}, and tetrad acceptance = {tet_acceptance}")
-        if self.crosscheck:
-            check_act = np.real(np.sum(g.eval(self.compute_action())[:]) / self.L**4)
-            g.message(f"Cross check action = {check_act}")
-        # act2 = np.mean(g.eval(compute_action_check(U, e))[:])
-        # act1 = g.real(grid)
-        # act1[:] = 0
-        # for mu in range(4):
-        #     act1 += g.eval(compute_tet_action(U, e, mu))
-        # act1 = np.mean(act1[:])
-        # g.message(f"action1 = {act1}, action2 = {act2}")
         for coord in it.product(range(2), repeat=4):
             shift0, shift1, shift2, shift3 = coord
             self.mask = g.cshift(g.cshift(g.cshift(g.cshift(self.starting_ones, 0, shift0), 1, shift1), 2, shift2), 3, shift3)
             self.update_fields()
-            # assert False
-        # for cb in [g.even, g.odd]:
-            # self.mask[:] = 0
-            # self.mask_rb.checkerboard(cb)
-            # print(self.mask_rb)
-            # g.set_checkerboard(self.mask, self.mask_rb)
-            # print(self.mask)
-            # assert False
-            # self.update_fields()
 
 
 
