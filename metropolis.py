@@ -321,8 +321,8 @@ class Simulation:
         self.alpha = alpha
         self.Uinc = 0.5
         self.einc = 0.5
-        self.du_step = 0.001
-        self.de_step = 0.001
+        self.du_step = 0.01
+        self.de_step = 0.01
         self.target_u_acpt = uacpt_rate
         self.target_e_acpt = eacpt_rate
         self.swp_count = 0
