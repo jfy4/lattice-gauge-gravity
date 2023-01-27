@@ -86,6 +86,19 @@ class Simulation:
                   )
         return action
 
+    def compute_curvature(self,):
+        R = g.real(self.grid)
+        R[:] = 0
+        eslash = self.make_eslash()
+        for idx, val in levi.items():
+            mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
+            Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
+            R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
+        R /= 8
+        dete = det(self.e)
+        R *= g.component(inv(dete))
+        return np.mean(g.eval(R)[:])
+    
     
     def staple(self, mu):
         Emu = g.mspin(self.grid)
@@ -341,8 +354,6 @@ class Simulation:
         self.measurements.append([plaq, R_2x1, the_det, act])
         link_acceptance = np.real(np.mean(self.link_acpt))
         tet_acceptance = np.real(np.mean(self.tet_acpt))
-        # print(abs(link_acceptance - self.target_u_acpt), link_acceptance, self.target_u_acpt, self.Uinc)
-        #print(abs(tet_acceptance - self.target_e_acpt))
         if abs(link_acceptance - self.target_u_acpt) < 0.02:
             pass
         elif link_acceptance < self.target_u_acpt:
@@ -434,7 +445,7 @@ if __name__ == "__main__":
     K = 0
     alpha = 1.
     L = 4
-    nswps = 100
+    # nswps = 100
     # dU_step = 0.5
     # de_step = 0.5
 
