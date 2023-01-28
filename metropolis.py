@@ -4,11 +4,15 @@ import gpt as g
 import itertools as it
 import numpy as np
 import copy
+import h5py
 
 
 class Simulation:
 
     def __init__(self, L):
+        """
+        Initialize a Metropolis simulation.
+        """
         self.L = L # symmetric lattice
         self.grid = g.grid([self.L]*4, g.double) # make the lattice
         self.link_acpt = [0]*100
@@ -22,6 +26,20 @@ class Simulation:
         self.make_Us()
         # make the checkerboard mask
         self.make_initial_mask()
+
+
+    def save_config(self, swp_number):
+        """ Save field configurations."""
+        f = h5py.File("tetrads_k" + str(self.kappa) + "_lam" + str(self.lam)
+                      + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L)
+                      + "_swp" + str(swp_number) + ".hdf5", 'w')
+        g = h5py.File("Us_k" + str(self.kappa) + "_lam" + str(self.lam)
+                      + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L)
+                      + "_swp" + str(swp_number) + ".hdf5", 'w')
+        for mu in range(4):
+            g.create_dataset(str(mu), data=self.U[mu][:])
+            for a in range(4):
+                f.create_dataset(str(mu) + "/" + str(a), data=self.e[mu][a][:])
         
     def make_initial_mask(self,):
         """
@@ -325,24 +343,27 @@ class Simulation:
         self.update_links()
         self.update_tetrads()
 
-    def run(self, nswps, kappa, lam, alpha, K, uacpt_rate=0.6, eacpt_rate=0.6, crosscheck=False):
+    def run(self, kappa, lam, alpha, K, measurement_rate=20, uacpt_rate=0.6, eacpt_rate=0.6):
         """ Runs the Metropolis algorithm."""
-        self.crosscheck = crosscheck
         self.kappa = kappa
         self.lam = lam
         self.K = K
         self.alpha = alpha
-        self.Uinc = 0.5
-        self.einc = 0.5
+        self.Uinc = 0.4
+        self.einc = 0.4
         self.du_step = 0.01
         self.de_step = 0.01
         self.target_u_acpt = uacpt_rate
         self.target_e_acpt = eacpt_rate
-        self.swp_count = 0
+        self.meas_rate = measurement_rate
         self.measurements = list()
-        
+
+        self.swp_count = 0
         while True:
             self.sweep(self.swp_count)
+            if (self.swp_count % self.meas_rate == 0):
+                self.save_config(self.swp_count)
+            assert False
             self.swp_count += 1
 
     def sweep(self, swp):
@@ -445,16 +466,13 @@ if __name__ == "__main__":
     K = 0
     alpha = 1.
     L = 4
-    # nswps = 100
-    # dU_step = 0.5
-    # de_step = 0.5
 
     # make the levi tensors
     levi = make_levi()
     levi3 = three_levi()
 
     lattice = Simulation(L)
-    lattice.run(nswps, kappa, lam, alpha, K)
+    lattice.run(kappa, lam, alpha, K, 1)
     
     
     # np.save("measure_nswps" + str(nswps) + "_K" + str(K) +
