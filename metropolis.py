@@ -5,6 +5,7 @@ import itertools as it
 import numpy as np
 import copy
 import h5py
+import os
 
 
 class Simulation:
@@ -30,17 +31,36 @@ class Simulation:
 
     def save_config(self, swp_number):
         """ Save field configurations."""
-        f = h5py.File("tetrads_k" + str(self.kappa) + "_lam" + str(self.lam)
-                      + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L)
-                      + "_swp" + str(swp_number) + ".hdf5", 'w')
-        g = h5py.File("Us_k" + str(self.kappa) + "_lam" + str(self.lam)
-                      + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L)
-                      + "_swp" + str(swp_number) + ".hdf5", 'w')
-        for mu in range(4):
-            g.create_dataset(str(mu), data=self.U[mu][:])
-            for a in range(4):
-                f.create_dataset(str(mu) + "/" + str(a), data=self.e[mu][a][:])
-        
+        current_path = ("./k" + str(self.kappa) + "_lam" + str(self.lam)
+                        + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L) + "/")
+        try:
+            os.mkdir(current_path)
+            f = h5py.File(current_path + "tetrads_k" + str(self.kappa) + "_lam" + str(self.lam)
+                          + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L)
+                          + "_swp" + str(swp_number) + ".hdf5", 'w')
+            g = h5py.File(current_path + "Us_k" + str(self.kappa) + "_lam" + str(self.lam)
+                          + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L)
+                          + "_swp" + str(swp_number) + ".hdf5", 'w')
+            for mu in range(4):
+                g.create_dataset(str(mu), data=self.U[mu][:])
+                for a in range(4):
+                    f.create_dataset(str(mu) + "/" + str(a), data=self.e[mu][a][:])
+        except FileExistsError:
+            f = h5py.File(current_path + "tetrads_k" + str(self.kappa) + "_lam" + str(self.lam)
+                          + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L)
+                          + "_swp" + str(swp_number) + ".hdf5", 'w')
+            g = h5py.File(current_path + "Us_k" + str(self.kappa) + "_lam" + str(self.lam)
+                          + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L)
+                          + "_swp" + str(swp_number) + ".hdf5", 'w')
+            for mu in range(4):
+                g.create_dataset(str(mu), data=self.U[mu][:])
+                for a in range(4):
+                    f.create_dataset(str(mu) + "/" + str(a), data=self.e[mu][a][:])
+            
+            
+
+
+                
     def make_initial_mask(self,):
         """
         Makes a checkerboard mask such that every other site in
@@ -104,7 +124,8 @@ class Simulation:
                   )
         return action
 
-    def compute_curvature(self,):
+    def compute_obs(self,):
+        """ Compute the R and |dete|."""
         R = g.real(self.grid)
         R[:] = 0
         eslash = self.make_eslash()
@@ -115,7 +136,7 @@ class Simulation:
         R /= 8
         dete = det(self.e)
         R *= g.component(inv(dete))
-        return np.mean(g.eval(R)[:])
+        return (np.real(np.mean(g.eval(R)[:])), np.real(np.mean(g.eval(g.component.abs(dete))[:])))
     
     
     def staple(self, mu):
@@ -363,7 +384,7 @@ class Simulation:
             self.sweep(self.swp_count)
             if (self.swp_count % self.meas_rate == 0):
                 self.save_config(self.swp_count)
-            assert False
+            # assert False
             self.swp_count += 1
 
     def sweep(self, swp):
@@ -472,7 +493,7 @@ if __name__ == "__main__":
     levi3 = three_levi()
 
     lattice = Simulation(L)
-    lattice.run(kappa, lam, alpha, K, 1)
+    lattice.run(kappa, lam, alpha, K, measurement_rate=1)
     
     
     # np.save("measure_nswps" + str(nswps) + "_K" + str(K) +
