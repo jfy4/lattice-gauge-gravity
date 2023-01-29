@@ -18,6 +18,7 @@ class Simulation:
         self.grid = g.grid([self.L]*4, g.double) # make the lattice
         self.link_acpt = [0]*100
         self.tet_acpt = [0]*100
+        self.load = False
         g.message(self.grid)
         self.rng = g.random("seed string") # initialize random seed
 
@@ -31,18 +32,33 @@ class Simulation:
 
     def load_config(self, fields_path):
         """Load saved gauge and tetrad fields."""
+        self.load = True
         fields = h5py.File(fields_path, 'r')
 
-        tail = fields_path.split('_')[-1]
-        tail = tail[3:-5]
-        self.swp_count = int(tail)
+        temp = fields_path.split('_')[-1]
+        temp = temp[3:-5]
+        self.swp_count = int(temp)
+        temp = fields_path.split('_')[-2]
+        temp = temp[1:]
+        self.L = int(temp)
+        temp = fields_path.split('_')[-6]
+        temp = temp[1:]
+        self.kappa = np.float64(temp)
+        temp = fields_path.split('_')[-5]
+        temp = temp[3:]
+        self.lam = np.float64(temp)
+        temp = fields_path.split('_')[-4]
+        temp = temp[1:]
+        self.alpha = np.float64(temp)
+        temp = fields_path.split('_')[-3]
+        temp = temp[1:]
+        self.K = np.float64(temp)
         
         for mu in range(4):
-            self.U[mu][:] = fields['gauge']str(mu)][:]
+            self.U[mu][:] = fields['gauge'][str(mu)][:]
             for a in range(4):
                 self.e[mu][a][:] = fields['tetrad'][str(mu)][str(a)][:]
-
-
+        g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, K = {self.K}")
         
 
     def save_config(self,):
@@ -381,10 +397,6 @@ class Simulation:
 
     def run(self, kappa, lam, alpha, K, measurement_rate=20, uacpt_rate=0.6, eacpt_rate=0.6):
         """ Runs the Metropolis algorithm."""
-        self.kappa = kappa
-        self.lam = lam
-        self.K = K
-        self.alpha = alpha
         self.Uinc = 0.4
         self.einc = 0.4
         self.du_step = 0.01
@@ -394,7 +406,16 @@ class Simulation:
         self.meas_rate = measurement_rate
         self.measurements = list()
 
-        self.swp_count = 0
+        if self.load:
+            pass
+        else:
+            self.swp_count = 0
+            self.kappa = np.float64(kappa)
+            self.lam = np.float64(lam)
+            self.K = np.float64(K)
+            self.alpha = np.float64(alpha)
+            g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, K = {self.K}")
+
         while True:
             self.sweep(self.swp_count)
             if (self.swp_count % self.meas_rate == 0):
@@ -507,6 +528,7 @@ if __name__ == "__main__":
     levi3 = three_levi()
 
     lattice = Simulation(L)
+    # lattice.load_config("./k1.0_lam1.0_a1.0_K0_L4/fields_k1.0_lam1.0_a1.0_K0_L4_swp1.hdf5")
     lattice.run(kappa, lam, alpha, K, measurement_rate=1)
     
     
