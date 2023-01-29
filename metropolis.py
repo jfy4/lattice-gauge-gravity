@@ -395,8 +395,8 @@ class Simulation:
         self.swp_count = 0
         while True:
             self.sweep(self.swp_count)
-            if (self.swp_count % self.meas_rate == 0):
-                self.save_config(self.swp_count)
+            # if (self.swp_count % self.meas_rate == 0):
+            #     self.save_config(self.swp_count)
             # assert False
             self.swp_count += 1
 
