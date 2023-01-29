@@ -29,15 +29,22 @@ class Simulation:
         self.make_initial_mask()
 
 
-    # def load_config(self, tet_path, link_path):
-    #     """Load saved gauge and tetrad fields."""
-    #     tets = h5py.File(tet_path, 'r')
-    #     links = h5py.File(link_path, 'r')
+    def load_config(self, tet_path, link_path):
+        """Load saved gauge and tetrad fields."""
+        tets = h5py.File(tet_path, 'r')
+        links = h5py.File(link_path, 'r')
+
+        tail1 = tet_path.split('_')[-1]
+        tail1 = tail[3:-5]
+        tail2 = link_path.split('_')[-1]
+        tail2 = link[3:-5]
+        assert tail1 == tail2
+        self.swp_count = int(tail1)
         
-    #     for mu in range(4):
-    #         self.U[mu][:] = links[str(mu)][:]
-    #         for a in range(4):
-    #             self.e[mu][a][:] = tets[str(mu)][str(a)][:]
+        for mu in range(4):
+            self.U[mu][:] = links[str(mu)][:]
+            for a in range(4):
+                self.e[mu][a][:] = tets[str(mu)][str(a)][:]
 
 
         
@@ -395,9 +402,8 @@ class Simulation:
         self.swp_count = 0
         while True:
             self.sweep(self.swp_count)
-            # if (self.swp_count % self.meas_rate == 0):
-            #     self.save_config(self.swp_count)
-            # assert False
+            if (self.swp_count % self.meas_rate == 0):
+                self.save_config(self.swp_count)
             self.swp_count += 1
 
     def sweep(self, swp):
