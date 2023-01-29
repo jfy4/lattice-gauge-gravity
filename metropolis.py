@@ -29,6 +29,19 @@ class Simulation:
         self.make_initial_mask()
 
 
+    # def load_config(self, tet_path, link_path):
+    #     """Load saved gauge and tetrad fields."""
+    #     tets = h5py.File(tet_path, 'r')
+    #     links = h5py.File(link_path, 'r')
+        
+    #     for mu in range(4):
+    #         self.U[mu][:] = links[str(mu)][:]
+    #         for a in range(4):
+    #             self.e[mu][a][:] = tets[str(mu)][str(a)][:]
+
+
+        
+
     def save_config(self, swp_number):
         """ Save field configurations."""
         current_path = ("./k" + str(self.kappa) + "_lam" + str(self.lam)
