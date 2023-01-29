@@ -29,54 +29,46 @@ class Simulation:
         self.make_initial_mask()
 
 
-    def load_config(self, tet_path, link_path):
+    def load_config(self, fields_path):
         """Load saved gauge and tetrad fields."""
-        tets = h5py.File(tet_path, 'r')
-        links = h5py.File(link_path, 'r')
+        fields = h5py.File(fields_path, 'r')
 
-        tail1 = tet_path.split('_')[-1]
-        tail1 = tail[3:-5]
-        tail2 = link_path.split('_')[-1]
-        tail2 = link[3:-5]
-        assert tail1 == tail2
-        self.swp_count = int(tail1)
+        tail = fields_path.split('_')[-1]
+        tail = tail[3:-5]
+        self.swp_count = int(tail)
         
         for mu in range(4):
-            self.U[mu][:] = links[str(mu)][:]
+            self.U[mu][:] = fields['gauge']str(mu)][:]
             for a in range(4):
-                self.e[mu][a][:] = tets[str(mu)][str(a)][:]
+                self.e[mu][a][:] = fields['tetrad'][str(mu)][str(a)][:]
 
 
         
 
-    def save_config(self, swp_number):
+    def save_config(self,):
         """ Save field configurations."""
         current_path = ("./k" + str(self.kappa) + "_lam" + str(self.lam)
                         + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L) + "/")
         try:
             os.mkdir(current_path)
-            f = h5py.File(current_path + "tetrads_k" + str(self.kappa) + "_lam" + str(self.lam)
+            f = h5py.File(current_path + "fields_k" + str(self.kappa) + "_lam" + str(self.lam)
                           + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L)
-                          + "_swp" + str(swp_number) + ".hdf5", 'w')
-            g = h5py.File(current_path + "Us_k" + str(self.kappa) + "_lam" + str(self.lam)
-                          + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L)
-                          + "_swp" + str(swp_number) + ".hdf5", 'w')
+                          + "_swp" + str(self.swp_count) + ".hdf5", 'w')
             for mu in range(4):
-                g.create_dataset(str(mu), data=self.U[mu][:])
+                f.create_dataset("gauge/" + str(mu), data=self.U[mu][:])
                 for a in range(4):
-                    f.create_dataset(str(mu) + "/" + str(a), data=self.e[mu][a][:])
+                    f.create_dataset("tetrad/" + str(mu) + "/" + str(a), data=self.e[mu][a][:])
         except FileExistsError:
-            f = h5py.File(current_path + "tetrads_k" + str(self.kappa) + "_lam" + str(self.lam)
+            f = h5py.File(current_path + "fields_k" + str(self.kappa) + "_lam" + str(self.lam)
                           + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L)
-                          + "_swp" + str(swp_number) + ".hdf5", 'w')
-            g = h5py.File(current_path + "Us_k" + str(self.kappa) + "_lam" + str(self.lam)
-                          + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L)
-                          + "_swp" + str(swp_number) + ".hdf5", 'w')
+                          + "_swp" + str(self.swp_count) + ".hdf5", 'w')
             for mu in range(4):
-                g.create_dataset(str(mu), data=self.U[mu][:])
+                f.create_dataset("gauge/" + str(mu), data=self.U[mu][:])
                 for a in range(4):
-                    f.create_dataset(str(mu) + "/" + str(a), data=self.e[mu][a][:])
-            
+                    f.create_dataset("tetrad/" + str(mu) + "/" + str(a), data=self.e[mu][a][:])
+
+
+
             
 
 
@@ -155,8 +147,11 @@ class Simulation:
             R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
         R /= 8
         dete = det(self.e)
-        R *= g.component(inv(dete))
-        return (np.real(np.mean(g.eval(R)[:])), np.real(np.mean(g.eval(g.component.abs(dete))[:])))
+        R *= g.eval(g.component(inv(dete)))
+        absdete = g.eval(g.component(abs(dete)))
+        return (R, absdete)
+        
+        # return (np.real(np.mean(g.eval(R)[:])), np.real(np.mean(g.eval(g.component.abs(dete))[:])))
     
     
     def staple(self, mu):
@@ -403,7 +398,7 @@ class Simulation:
         while True:
             self.sweep(self.swp_count)
             if (self.swp_count % self.meas_rate == 0):
-                self.save_config(self.swp_count)
+                self.save_config()
             self.swp_count += 1
 
     def sweep(self, swp):
