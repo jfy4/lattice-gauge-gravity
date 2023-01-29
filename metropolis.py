@@ -63,26 +63,23 @@ class Simulation:
 
     def save_config(self,):
         """ Save field configurations."""
-        current_path = ("./k" + str(self.kappa) + "_lam" + str(self.lam)
-                        + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L) + "/")
+        kappa = str(np.round(self.kappa, 8))
+        lam = str(np.round(self.lam, 8))
+        alpha = str(np.round(self.alpha, 8))
+        K = str(np.round(self.K, 8))
+        current_path = ("./k" + kappa + "_lam" + lam
+                        + "_a" + alpha + "_K" + K + "_L" + str(self.L) + "/")
         try:
             os.mkdir(current_path)
-            f = h5py.File(current_path + "fields_k" + str(self.kappa) + "_lam" + str(self.lam)
-                          + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L)
-                          + "_swp" + str(self.swp_count) + ".hdf5", 'w')
-            for mu in range(4):
-                f.create_dataset("gauge/" + str(mu), data=self.U[mu][:])
-                for a in range(4):
-                    f.create_dataset("tetrad/" + str(mu) + "/" + str(a), data=self.e[mu][a][:])
         except FileExistsError:
-            f = h5py.File(current_path + "fields_k" + str(self.kappa) + "_lam" + str(self.lam)
-                          + "_a" + str(self.alpha) + "_K" + str(self.K) + "_L" + str(self.L)
-                          + "_swp" + str(self.swp_count) + ".hdf5", 'w')
-            for mu in range(4):
-                f.create_dataset("gauge/" + str(mu), data=self.U[mu][:])
-                for a in range(4):
-                    f.create_dataset("tetrad/" + str(mu) + "/" + str(a), data=self.e[mu][a][:])
-
+            pass
+        f = h5py.File(current_path + "fields_k" + kappa + "_lam" + lam
+                      + "_a" + alpha + "_K" + K + "_L" + str(self.L)
+                      + "_swp" + str(self.swp_count) + ".hdf5", 'w')
+        for mu in range(4):
+            f.create_dataset("gauge/" + str(mu), data=self.U[mu][:])
+            for a in range(4):
+                f.create_dataset("tetrad/" + str(mu) + "/" + str(a), data=self.e[mu][a][:])
 
 
             
@@ -167,7 +164,6 @@ class Simulation:
         absdete = g.eval(g.component(abs(dete)))
         return (R, absdete)
         
-        # return (np.real(np.mean(g.eval(R)[:])), np.real(np.mean(g.eval(g.component.abs(dete))[:])))
     
     
     def staple(self, mu):
@@ -531,9 +527,5 @@ if __name__ == "__main__":
     # lattice.load_config("./k1.0_lam1.0_a1.0_K0_L4/fields_k1.0_lam1.0_a1.0_K0_L4_swp1.hdf5")
     lattice.run(kappa, lam, alpha, K, measurement_rate=1)
     
-    
-    # np.save("measure_nswps" + str(nswps) + "_K" + str(K) +
-    #         "_kappa" + str(kappa) + "_lam" + str(lam) +
-    #         "_alpha" + str(alpha) + ".npy", lattice.measurements)
-        
+            
             
