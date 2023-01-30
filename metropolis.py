@@ -35,24 +35,11 @@ class Simulation:
         self.load = True
         fields = h5py.File(fields_path, 'r')
 
-        temp = fields_path.split('_')[-1]
-        temp = temp[3:-5]
-        self.swp_count = int(temp)
-        temp = fields_path.split('_')[-2]
-        temp = temp[1:]
-        self.L = int(temp)
-        temp = fields_path.split('_')[-6]
-        temp = temp[1:]
-        self.kappa = np.float64(temp)
-        temp = fields_path.split('_')[-5]
-        temp = temp[3:]
-        self.lam = np.float64(temp)
-        temp = fields_path.split('_')[-4]
-        temp = temp[1:]
-        self.alpha = np.float64(temp)
-        temp = fields_path.split('_')[-3]
-        temp = temp[1:]
-        self.K = np.float64(temp)
+        self.kappa = fields.attrs['kappa']
+        self.lam = fields.attrs['lambda']
+        self.alpha = fields.attrs['alpha']
+        self.K = fields.attrs['K']
+        self.swp_count = fields.attrs['sweep']
         
         for mu in range(4):
             self.U[mu][:] = fields['gauge'][str(mu)][:]
@@ -76,10 +63,18 @@ class Simulation:
         f = h5py.File(current_path + "fields_k" + kappa + "_lam" + lam
                       + "_a" + alpha + "_K" + K + "_L" + str(self.L)
                       + "_swp" + str(self.swp_count) + ".hdf5", 'w')
+        f.attrs['kappa'] = self.kappa
+        f.attrs['lambda'] = self.lam
+        f.attrs['alpha'] = self.alpha
+        f.attrs['K'] = self.K
+        f.attrs['sweep'] = self.swp_count
         for mu in range(4):
             f.create_dataset("gauge/" + str(mu), data=self.U[mu][:])
             for a in range(4):
                 f.create_dataset("tetrad/" + str(mu) + "/" + str(a), data=self.e[mu][a][:])
+        R, dete = self.compute_obs()
+        f.create_dataset("obs/R", data=R[:])
+        f.create_dataset("obs/dete", data=dete[:])
 
 
             
@@ -515,7 +510,7 @@ if __name__ == "__main__":
     # parameters
     kappa = 1.
     lam = 1.
-    K = 0
+    K = 0.
     alpha = 1.
     L = 4
 
@@ -524,8 +519,8 @@ if __name__ == "__main__":
     levi3 = three_levi()
 
     lattice = Simulation(L)
-    # lattice.load_config("./k1.0_lam1.0_a1.0_K0_L4/fields_k1.0_lam1.0_a1.0_K0_L4_swp1.hdf5")
-    lattice.run(kappa, lam, alpha, K, measurement_rate=1)
+    lattice.load_config("./k1.0_lam1.0_a1.0_K0.0_L4/fields_k1.0_lam1.0_a1.0_K0.0_L4_swp2.hdf5")
+    # lattice.run(kappa, lam, alpha, K, measurement_rate=1)
     
             
             
