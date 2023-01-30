@@ -71,10 +71,10 @@ class Simulation:
         for mu in range(4):
             f.create_dataset("gauge/" + str(mu), data=self.U[mu][:])
             for a in range(4):
-                f.create_dataset("tetrad/" + str(mu) + "/" + str(a), data=self.e[mu][a][:])
+                f.create_dataset("tetrad/" + str(mu) + "/" + str(a), data=np.real(self.e[mu][a][:]))
         R, dete = self.compute_obs()
-        f.create_dataset("obs/R", data=R[:])
-        f.create_dataset("obs/dete", data=dete[:])
+        f.create_dataset("obs/R", data=np.real(R[:]))
+        f.create_dataset("obs/dete", data=np.real(dete[:]))
 
 
             
@@ -155,8 +155,8 @@ class Simulation:
             R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
         R /= 8
         dete = det(self.e)
-        R *= g.eval(g.component(inv(dete)))
-        absdete = g.eval(g.component(abs(dete)))
+        R *= g.eval(g.component.inv(dete))
+        absdete = g.eval(g.component.abs(dete))
         return (R, absdete)
         
     
@@ -290,8 +290,8 @@ class Simulation:
         for i in range(4):
             lnU[i][:] = 0
         # gamma commutators
-        Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
-                  [a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
+        Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() -
+                  g.gamma[b].tensor()*g.gamma[a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
         omega = [ [ [ self.rng.normal(g.complex(self.grid)) for b in range(0,4)]
                     for a in range(0,4) ] for mu in range(0, 4) ]
         for mu in range(0, 4):
@@ -519,8 +519,8 @@ if __name__ == "__main__":
     levi3 = three_levi()
 
     lattice = Simulation(L)
-    lattice.load_config("./k1.0_lam1.0_a1.0_K0.0_L4/fields_k1.0_lam1.0_a1.0_K0.0_L4_swp2.hdf5")
-    # lattice.run(kappa, lam, alpha, K, measurement_rate=1)
+    # lattice.load_config("./k1.0_lam1.0_a1.0_K0.0_L4/fields_k1.0_lam1.0_a1.0_K0.0_L4_swp2.hdf5")
+    lattice.run(kappa, lam, alpha, K, measurement_rate=1)
     
             
             
