@@ -111,6 +111,7 @@ class Simulation:
         return eslash
 
     def random_links(self, scale=1.0):
+        """ Make a lattice of random link variables."""
         Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
                   [a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
         lnV = g.mspin(self.grid) 
@@ -336,6 +337,7 @@ class Simulation:
             self.link_acpt.pop()
             self.link_acpt.insert(0, np.sum(accept[:]) / np.sum(self.starting_ones[:]))
             self.U[mu] @= g.where(accept, lp, lo)
+            del lp, lo, V, V_eye, action, action_prime, prob, rn, accept
             # print(links[mu][0,0,0,0], lo[0,0,0,0], lp[0,0,0,0])
             # print('==================')
         
@@ -377,6 +379,7 @@ class Simulation:
                 self.tet_acpt.pop()
                 self.tet_acpt.insert(0, np.sum(accept[:]) / np.sum(self.starting_ones[:]))
                 self.e[mu][a] @= g.where(accept, ep, eo)
+                del action, ii_eye, ii, eo, ep, action_prime, prob, rn, accept
                 # print(e[mu][a][0,0,0,0], eo[0,0,0,0], ep[0,0,0,0])
                 # print(np.sum(g.eval(compute_tet_action(links, e, mu))[:]))
                 # print('==================')
@@ -522,7 +525,6 @@ if __name__ == "__main__":
     levi3 = three_levi()
 
     lattice = Simulation(L)
-    print(lattice.e[0][0])
     # lattice.load_config("./k1.0_lam1.0_a1.0_K0.0_L4/fields_k1.0_lam1.0_a1.0_K0.0_L4_swp1.hdf5")
     # lattice.run(kappa, lam, alpha, K, measurement_rate=1)
     
