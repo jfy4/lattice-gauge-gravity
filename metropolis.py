@@ -21,6 +21,7 @@ class Simulation:
         self.load = False
         g.message(self.grid)
         self.rng = g.random("seed string") # initialize random seed
+        # self.rng = g.random() # initialize random seed
 
         # make the tetrads
         self.e = [[self.rng.normal(g.real(self.grid)) for a in range(4)] for mu in range(4)]
@@ -40,6 +41,7 @@ class Simulation:
         self.alpha = fields.attrs['alpha']
         self.K = fields.attrs['K']
         self.swp_count = fields.attrs['sweep']
+        assert self.L == fields.attrs['L']
         
         for mu in range(4):
             self.U[mu][:] = fields['gauge'][str(mu)][:]
@@ -68,6 +70,7 @@ class Simulation:
         f.attrs['alpha'] = self.alpha
         f.attrs['K'] = self.K
         f.attrs['sweep'] = self.swp_count
+        f.attrs['L'] = self.L
         for mu in range(4):
             f.create_dataset("gauge/" + str(mu), data=self.U[mu][:])
             for a in range(4):
@@ -156,8 +159,8 @@ class Simulation:
         R /= 8
         dete = det(self.e)
         R *= g.eval(g.component.inv(dete))
-        absdete = g.eval(g.component.abs(dete))
-        return (R, absdete)
+        dete = g.eval(dete)
+        return (R, dete)
         
     
     
@@ -510,7 +513,7 @@ if __name__ == "__main__":
     # parameters
     kappa = 1.
     lam = 1.
-    K = 0.
+    K = 1.
     alpha = 1.
     L = 4
 
@@ -519,8 +522,9 @@ if __name__ == "__main__":
     levi3 = three_levi()
 
     lattice = Simulation(L)
-    # lattice.load_config("./k1.0_lam1.0_a1.0_K0.0_L4/fields_k1.0_lam1.0_a1.0_K0.0_L4_swp2.hdf5")
-    lattice.run(kappa, lam, alpha, K, measurement_rate=1)
+    print(lattice.e[0][0])
+    # lattice.load_config("./k1.0_lam1.0_a1.0_K0.0_L4/fields_k1.0_lam1.0_a1.0_K0.0_L4_swp1.hdf5")
+    # lattice.run(kappa, lam, alpha, K, measurement_rate=1)
     
             
             
