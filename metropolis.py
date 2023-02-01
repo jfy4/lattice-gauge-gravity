@@ -20,8 +20,8 @@ class Simulation:
         self.tet_acpt = [0]*100
         self.load = False
         g.message(self.grid)
-        self.rng = g.random("seed string") # initialize random seed
-        # self.rng = g.random() # initialize random seed
+        # self.rng = g.random("seed string") # initialize random seed
+        self.rng = g.random("new seed") # initialize random seed
 
         # make the tetrads
         self.e = [[self.rng.normal(g.real(self.grid)) for a in range(4)] for mu in range(4)]
@@ -142,14 +142,13 @@ class Simulation:
         meas = g.component.log(g.component.abs(dete))
         action = (sign(dete) * ((self.lam / 96) * vol
                                 -(self.kappa / 16) * R
-                                + (self.alpha * Rsq * g.component.inv(dete) / 64)
+                                + (self.alpha * Rsq * g.component.inv(dete) / 64))
                                 - (self.K * meas)
-                                )
                   )
         return action
 
     def compute_obs(self,):
-        """ Compute the R and |dete|."""
+        """ Compute the R and dete."""
         R = g.real(self.grid)
         R[:] = 0
         eslash = self.make_eslash()
@@ -337,7 +336,7 @@ class Simulation:
             self.link_acpt.pop()
             self.link_acpt.insert(0, np.sum(accept[:]) / np.sum(self.starting_ones[:]))
             self.U[mu] @= g.where(accept, lp, lo)
-            del lp, lo, V, V_eye, action, action_prime, prob, rn, accept
+        del lp, lo, V, V_eye, action, action_prime, prob, rn, accept
             # print(links[mu][0,0,0,0], lo[0,0,0,0], lp[0,0,0,0])
             # print('==================')
         
@@ -379,7 +378,7 @@ class Simulation:
                 self.tet_acpt.pop()
                 self.tet_acpt.insert(0, np.sum(accept[:]) / np.sum(self.starting_ones[:]))
                 self.e[mu][a] @= g.where(accept, ep, eo)
-                del action, ii_eye, ii, eo, ep, action_prime, prob, rn, accept
+        del action, ii_eye, ii, eo, ep, action_prime, prob, rn, accept
                 # print(e[mu][a][0,0,0,0], eo[0,0,0,0], ep[0,0,0,0])
                 # print(np.sum(g.eval(compute_tet_action(links, e, mu))[:]))
                 # print('==================')
@@ -401,7 +400,6 @@ class Simulation:
         self.target_u_acpt = uacpt_rate
         self.target_e_acpt = eacpt_rate
         self.meas_rate = measurement_rate
-        self.measurements = list()
 
         if self.load:
             pass
@@ -425,7 +423,6 @@ class Simulation:
         R_2x1 = g.qcd.gauge.rectangle(self.U, 2, 1)
         the_det = np.real(np.mean(det(self.e)[:]))
         act = np.real(np.sum(g.eval(self.compute_action())[:]) / self.L**4)
-        self.measurements.append([plaq, R_2x1, the_det, act])
         link_acceptance = np.real(np.mean(self.link_acpt))
         tet_acceptance = np.real(np.mean(self.tet_acpt))
         if abs(link_acceptance - self.target_u_acpt) < 0.02:
@@ -525,8 +522,8 @@ if __name__ == "__main__":
     levi3 = three_levi()
 
     lattice = Simulation(L)
-    # lattice.load_config("./k1.0_lam1.0_a1.0_K0.0_L4/fields_k1.0_lam1.0_a1.0_K0.0_L4_swp1.hdf5")
-    # lattice.run(kappa, lam, alpha, K, measurement_rate=1)
+    # lattice.load_config("./k1.0_lam1.0_a1.0_K1.0_L4/fields_k1.0_lam1.0_a1.0_K1.0_L4_swp117.hdf5")
+    lattice.run(kappa, lam, alpha, K, measurement_rate=1)
     
             
             
