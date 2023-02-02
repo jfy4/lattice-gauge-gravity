@@ -1,11 +1,14 @@
 #!/miniconda3/bin/python
 
+import os
+os.environ["MKL_NUM_THREADS"] = "4"
+os.environ["NUMEXPR_NUM_THREADS"] = "4"
+os.environ["OMP_NUM_THREADS"] = "4"
 import gpt as g
 import itertools as it
 import numpy as np
 import copy
 import h5py
-import os
 
 
 class Simulation:
@@ -21,7 +24,7 @@ class Simulation:
         self.load = False
         g.message(self.grid)
         # self.rng = g.random("seed string") # initialize random seed
-        self.rng = g.random("new seed") # initialize random seed
+        self.rng = g.random("0") # initialize random seed
 
         # make the tetrads
         self.e = [[self.rng.normal(g.real(self.grid)) for a in range(4)] for mu in range(4)]
@@ -41,6 +44,7 @@ class Simulation:
         self.alpha = fields.attrs['alpha']
         self.K = fields.attrs['K']
         self.swp_count = fields.attrs['sweep']
+        self.rng = g.random(str(self.swp_count)) # initialize random seed
         assert self.L == fields.attrs['L']
         
         for mu in range(4):
@@ -124,6 +128,49 @@ class Simulation:
         del lnV, Ji2
         return V
 
+    def build_Bs(self,):
+        RmunuRnumu = g.real(self.grid)
+        RmunuRnumu[:] = 0 
+        RmunuRmunu = g.real(self.grid)
+        RmunuRmunu[:] = 0
+        BmunuBmunu = g.real(self.grid)
+        BmunuBmunu[:] = 0
+
+        BmunurhosigBmunurhosig = g.real(self.grid)
+        BmunurhosigBmunurhosig[:] = 0
+        eslash = self.make_eslash()
+        for (mu, nu, rho, sig) in it.product(range(4), repeat=4):
+            if (rho == mu) or (sig == nu):
+                pass
+            else:
+                Grhomu = g.qcd.gauge.field_strength(self.U, rho, mu)
+                Gsignu = g.qcd.gauge.field_strength(self.U, sig, nu)
+                RmunuRnumu += (g.trace(Grhomu * eslash[rho] * eslash[nu]) *
+                               g.trace(Gsignu * eslash[sig] * eslash[mu]))
+            if (mu == nu) or (rho == sig):
+                pass
+            else:
+                Gmunu = g.qcd.gauge.field_strength(self.U, mu, mu)
+                Grhosig = g.qcd.gauge.field_strength(self.U, rho, sig)
+                RmunurhosigRmunurhosig = (g.trace(Gmunu * Grhosig) *
+                                          (g.trace(eslash[mu] * eslash[rho]) / 4) *
+                                          (g.trace(eslash[nu] * eslash[sig]) / 4))
+                RmunuRmunu += (g.trace(eslash[mu] * Gmunu * Grhosig * eslash[rho])
+                               * g.trace(eslash[nu] * eslash[sig]) / 4
+                               -
+                               2 * RmunurhosigRmunurhosig
+                               ) / 8
+                BmunurhosigBmunurhosig += ((3 * g.trace(eslash[sig] * Gmunu *
+                                                        Grhosig * eslash[nu])
+                                            * (g.trace(eslash[mu] * eslash[rho]) / 4)
+                                            / 4) +
+                                           3 * RmunurhosigRmunurhosig / 2)
+        BmunuBmunu += (2 * RmunuRmunu - 2 * RmunuRnumu)
+        return (g.eval(BmunuBmunu), g.eval(BmunurhosigBmunurhosig))
+            
+
+        
+    
     def compute_action(self,):
         """ Compute the gravity action site-wise."""
         R = g.real(self.grid)
@@ -419,7 +466,7 @@ class Simulation:
         while True:
             self.sweep(self.swp_count)
             if (self.swp_count % self.meas_rate == 0):
-                # self.save_config()
+                self.save_config()
                 pass
             self.swp_count += 1
 
