@@ -494,10 +494,15 @@ class Simulation:
         g.message(f"Metropolis {swp} has det = {the_det}, P = {plaq}, R_2x1 = {R_2x1}, act = {act}")
         g.message(f"Metropolis {swp} has link acceptance = {link_acceptance}, and tetrad acceptance = {tet_acceptance}")
         g.message(f"Metropolis {swp} has link step = {self.Uinc}, and tetrad step = {self.einc}")
+        # self.check = g.real(self.grid)
+        # self.check[:] = 0
         for coord in it.product(range(2), repeat=4):
             shift0, shift1, shift2, shift3 = coord
             self.mask = g.cshift(g.cshift(g.cshift(g.cshift(self.starting_ones, 0, shift0), 1, shift1), 2, shift2), 3, shift3)
             self.update_fields()
+            # self.check += self.mask
+            # print(np.sum(self.check[:]), 4**4)
+            # assert False
 
 
 
@@ -564,10 +569,10 @@ if __name__ == "__main__":
     # initialize lattice
     
     # parameters
-    kappa = 1.
+    kappa = 0.
     lam = 1.
-    K = 1.
-    alpha = 1.
+    K = 0.
+    alpha = 0.
     L = 4
 
     # make the levi tensors
@@ -575,7 +580,7 @@ if __name__ == "__main__":
     levi3 = three_levi()
 
     lattice = Simulation(L)
-    lattice.load_config("./k1.0_lam1.0_a1.0_K1.0_L4/fields_k1.0_lam1.0_a1.0_K1.0_L4_swp117.hdf5")
+    lattice.load_config("./k0.0_lam1.0_a0.0_K0.0_L4/fields_k0.0_lam1.0_a0.0_K0.0_L4_swp120.hdf5")
     lattice.run(kappa, lam, alpha, K, measurement_rate=1)
     
             
