@@ -46,7 +46,7 @@ class Simulation:
         for mu in range(4):
             self.U[mu][:] = fields['gauge'][str(mu)][:]
             for a in range(4):
-                self.e[mu][a][:] = fields['tetrad'][str(mu)][str(a)][:]
+                self.e[mu][a][:] = fields['tetrad'][str(mu)][str(a)][:] + 0j
         g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, K = {self.K}")
         
 
@@ -121,6 +121,7 @@ class Simulation:
                 lnV += Ji2[a][b] * self.rng.normal(g.complex(self.grid), sigma=scale)
         V = g.mspin(self.grid)
         V = g.matrix.exp(lnV)
+        del lnV, Ji2
         return V
 
     def compute_action(self,):
@@ -145,6 +146,7 @@ class Simulation:
                                 + (self.alpha * Rsq * g.component.inv(dete) / 64))
                                 - (self.K * meas)
                   )
+        del R, Rsq, vol, eslash, dete, meas
         return action
 
     def compute_obs(self,):
@@ -305,6 +307,7 @@ class Simulation:
         self.U = [ g.mspin(self.grid) for mu in range(0,4) ]
         for mu in range(0,4):
             self.U[mu] = g.matrix.exp(lnU[mu])
+        del lnU, Ji2, omega
 
     
 
@@ -334,7 +337,8 @@ class Simulation:
             accept = rn < prob
             accept *= self.mask
             self.link_acpt.pop()
-            self.link_acpt.insert(0, np.sum(accept[:]) / np.sum(self.starting_ones[:]))
+            acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
+            self.link_acpt.insert(0, acpt_amount)
             self.U[mu] @= g.where(accept, lp, lo)
         del lp, lo, V, V_eye, action, action_prime, prob, rn, accept
             # print(links[mu][0,0,0,0], lo[0,0,0,0], lp[0,0,0,0])
@@ -376,7 +380,8 @@ class Simulation:
                 accept = rn < prob
                 accept *= self.mask
                 self.tet_acpt.pop()
-                self.tet_acpt.insert(0, np.sum(accept[:]) / np.sum(self.starting_ones[:]))
+                acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
+                self.tet_acpt.insert(0, acpt_amount)
                 self.e[mu][a] @= g.where(accept, ep, eo)
         del action, ii_eye, ii, eo, ep, action_prime, prob, rn, accept
                 # print(e[mu][a][0,0,0,0], eo[0,0,0,0], ep[0,0,0,0])
@@ -414,7 +419,8 @@ class Simulation:
         while True:
             self.sweep(self.swp_count)
             if (self.swp_count % self.meas_rate == 0):
-                self.save_config()
+                # self.save_config()
+                pass
             self.swp_count += 1
 
     def sweep(self, swp):
@@ -522,7 +528,7 @@ if __name__ == "__main__":
     levi3 = three_levi()
 
     lattice = Simulation(L)
-    # lattice.load_config("./k1.0_lam1.0_a1.0_K1.0_L4/fields_k1.0_lam1.0_a1.0_K1.0_L4_swp117.hdf5")
+    lattice.load_config("./k1.0_lam1.0_a1.0_K1.0_L4/fields_k1.0_lam1.0_a1.0_K1.0_L4_swp117.hdf5")
     lattice.run(kappa, lam, alpha, K, measurement_rate=1)
     
             
