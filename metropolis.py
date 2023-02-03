@@ -129,6 +129,8 @@ class Simulation:
         return V
 
     def build_Bs(self,):
+        """Compute the tensors that measure the violation
+           of the Bianchi identity."""
         RmunuRnumu = g.real(self.grid)
         RmunuRnumu[:] = 0 
         RmunuRmunu = g.real(self.grid)
@@ -165,7 +167,7 @@ class Simulation:
                                             * (g.trace(eslash[mu] * eslash[rho]) / 4)
                                             / 4) +
                                            3 * RmunurhosigRmunurhosig / 2)
-        BmunuBmunu += (2 * RmunuRmunu - 2 * RmunuRnumu)
+        BmunuBmunu = (2 * RmunuRmunu - 2 * RmunuRnumu)
         return (g.eval(BmunuBmunu), g.eval(BmunurhosigBmunurhosig))
             
 
@@ -569,10 +571,10 @@ if __name__ == "__main__":
     # initialize lattice
     
     # parameters
-    kappa = 0.
+    kappa = 1.
     lam = 1.
-    K = 0.
-    alpha = 0.
+    K = 1.
+    alpha = 1.
     L = 4
 
     # make the levi tensors
@@ -580,7 +582,7 @@ if __name__ == "__main__":
     levi3 = three_levi()
 
     lattice = Simulation(L)
-    lattice.load_config("./k0.0_lam1.0_a0.0_K0.0_L4/fields_k0.0_lam1.0_a0.0_K0.0_L4_swp120.hdf5")
+    lattice.load_config("./k1.0_lam1.0_a1.0_K1.0_L4/fields_k1.0_lam1.0_a1.0_K1.0_L4_swp1169.hdf5")
     lattice.run(kappa, lam, alpha, K, measurement_rate=1)
     
             
