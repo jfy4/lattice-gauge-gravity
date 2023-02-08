@@ -43,6 +43,7 @@ class Simulation:
         self.lam = fields.attrs['lambda']
         self.alpha = fields.attrs['alpha']
         self.K = fields.attrs['K']
+        self.omega = fields.attrs['omega']
         self.swp_count = fields.attrs['sweep']
         self.rng = g.random(str(self.swp_count)) # initialize random seed
         assert self.L == fields.attrs['L']
@@ -51,7 +52,7 @@ class Simulation:
             self.U[mu][:] = fields['gauge'][str(mu)][:]
             for a in range(4):
                 self.e[mu][a][:] = fields['tetrad'][str(mu)][str(a)][:] + 0j
-        g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, K = {self.K}")
+        g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, K = {self.K}, omega = {self.omega}")
         
 
     def save_config(self,):
@@ -60,19 +61,23 @@ class Simulation:
         lam = str(np.round(self.lam, 8))
         alpha = str(np.round(self.alpha, 8))
         K = str(np.round(self.K, 8))
+        omega = str(np.round(self.omega, 8))
         current_path = ("./k" + kappa + "_lam" + lam
-                        + "_a" + alpha + "_K" + K + "_L" + str(self.L) + "/")
+                        + "_a" + alpha + "_K" + K + "_o" + omega +
+                        "_L" + str(self.L) + "/")
         try:
             os.mkdir(current_path)
         except FileExistsError:
             pass
         f = h5py.File(current_path + "fields_k" + kappa + "_lam" + lam
-                      + "_a" + alpha + "_K" + K + "_L" + str(self.L)
+                      + "_a" + alpha + "_K" + K + "_o" + omega +
+                      "_L" + str(self.L)
                       + "_swp" + str(self.swp_count) + ".hdf5", 'w')
         f.attrs['kappa'] = self.kappa
         f.attrs['lambda'] = self.lam
         f.attrs['alpha'] = self.alpha
         f.attrs['K'] = self.K
+        f.attrs['omega'] = self.omega
         f.attrs['sweep'] = self.swp_count
         f.attrs['L'] = self.L
         for mu in range(4):
@@ -507,7 +512,7 @@ class Simulation:
         self.update_links()
         self.update_tetrads()
 
-    def run(self, kappa, lam, alpha, K, measurement_rate=20, uacpt_rate=0.6, eacpt_rate=0.6):
+    def run(self, kappa=1., lam=1., alpha=1., K=1., omega=1., measurement_rate=20, uacpt_rate=0.6, eacpt_rate=0.6):
         """ Runs the Metropolis algorithm."""
         self.Uinc = 0.4
         self.einc = 0.4
@@ -525,7 +530,8 @@ class Simulation:
             self.lam = np.float64(lam)
             self.K = np.float64(K)
             self.alpha = np.float64(alpha)
-            g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, K = {self.K}")
+            self.omega = np.float64(omega)
+            g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, K = {self.K}, omega={self.omega}")
 
         while True:
             self.sweep(self.swp_count)
@@ -633,10 +639,11 @@ if __name__ == "__main__":
     # initialize lattice
     
     # parameters
-    kappa = 1.
-    lam = 1.
-    K = 1.
-    alpha = 1.
+    # kappa = 1.
+    # lam = 1.
+    # K = 1.
+    # omega = 1.
+    # alpha = 1.
     L = 4
 
     # make the levi tensors
@@ -644,8 +651,8 @@ if __name__ == "__main__":
     levi3 = three_levi()
 
     lattice = Simulation(L)
-    lattice.load_config("./k1.0_lam1.0_a1.0_K1.0_L4/fields_k1.0_lam1.0_a1.0_K1.0_L4_swp1169.hdf5")
-    lattice.run(kappa, lam, alpha, K, measurement_rate=1)
+    # lattice.load_config("./k1.0_lam1.0_a1.0_K1.0_L4/fields_k1.0_lam1.0_a1.0_K1.0_L4_swp1169.hdf5")
+    lattice.run(measurement_rate=1)
     
             
             
