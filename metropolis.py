@@ -143,6 +143,7 @@ class Simulation:
         return eslash
 
     def make_ginv(self,):
+        """ make the inverse metric."""
         einvslash = self.make_einvslash()
         ginv = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]            
         for mu, nu in it.product(range(4), repeat=2):
@@ -242,6 +243,7 @@ class Simulation:
         eslash = self.make_eslash()
         wilson = g.real(self.grid)
         wilson[:] = 0
+        # smallB @= self.build_Bmunu_squared()
         for mu, nu in it.product(range(4), repeat=2):
             if mu == nu:
                 continue
@@ -255,6 +257,7 @@ class Simulation:
         Rsq += R * R # g.component.pow(2)(R)
         dete = det(self.e)
         wilson *= g.component.abs(dete)
+        # smallB *= g.component.abs(dete)
         meas = g.component.log(g.component.abs(dete))
         action = (sign(dete) * ((self.lam / 96) * vol
                                 -(self.kappa / 32) * R
