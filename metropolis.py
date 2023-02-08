@@ -205,7 +205,7 @@ class Simulation:
         Ricci = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
         for mu, nu in it.product(range(4), repeat=2):
             Ricci[mu][nu][:] = 0
-        einvslash = self.make einvslash()
+        einvslash = self.make_einvslash()
         for sig, mu, nu in it.product(range(4), repeat=3):
             if sig == mu:
                 continue
@@ -245,7 +245,7 @@ class Simulation:
         for mu, nu in it.product(range(4), repeat=2):
             if mu == nu:
                 continue
-            Hmunu = symmetric_clover(self.U, mu, nu)
+            Hmunu = self.symmetric_clover(self.U, mu, nu)
             wilson += g.trace(g.identity(Hmunu) - Hmunu)
         for idx, val in levi.items():
             mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
