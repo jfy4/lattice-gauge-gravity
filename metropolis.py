@@ -235,6 +235,13 @@ class Simulation:
         vol = g.real(self.grid)
         vol[:] = 0
         eslash = self.make_eslash()
+        wilson = g.real(self.grid)
+        wilson[:] = 0
+        for mu, nu in it.product(range(4), repeat=2):
+            if mu == nu:
+                continue
+            Hmunu = symmetric_clover(self.U, mu, nu)
+            wilson += g.trace(g.identity(Hmunu) - Hmunu)
         for idx, val in levi.items():
             mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
@@ -242,13 +249,15 @@ class Simulation:
             vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig]) * val
         Rsq += R * R # g.component.pow(2)(R)
         dete = det(self.e)
+        wilson *= g.component.abs(dete)
         meas = g.component.log(g.component.abs(dete))
         action = (sign(dete) * ((self.lam / 96) * vol
                                 -(self.kappa / 32) * R
                                 + (self.alpha * Rsq * g.component.inv(dete) / 256))
-                                - (self.K * meas)
+                  - (self.K * meas)
+                  + (self.omega * wilson)
                   )
-        del R, Rsq, vol, eslash, dete, meas
+        del R, Rsq, vol, eslash, dete, meas, wilson, Hmunu
         return action
 
     def compute_obs(self,):
