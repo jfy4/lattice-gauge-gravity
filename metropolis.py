@@ -85,7 +85,18 @@ class Simulation:
 
 
             
-
+    def inverse_tetrad(self, ):
+        edet = det(e)
+        self.einv = [[g.real(grid) for mu in range(4)] for a in range(4)]
+        for a in range(0,4):
+            for mu in range(0,4):
+                self.einv[a][mu][:] = 0
+        for idx_a, val_a in levi.items():
+            for idx_mu, val_mu in levi.items():
+                eInv[idx_a[0]][idx_mu[0]] += (1/6. * e[idx_mu[1]][idx_a[1]]
+                                              * e[idx_mu[2]][idx_a[2]] * e[idx_mu[3]][idx_a[3]]
+                                              * val_a * val_mu)
+        return eInv * g.component.inv(edet)
 
                 
     def make_initial_mask(self,):
@@ -106,6 +117,7 @@ class Simulation:
         return self.rng.normal(g.real(self.grid), sigma=scale)
     
     def make_eslash(self,):
+        """ Make the slashed es."""
         eslash = [g.mspin(self.grid) for mu in range(4)]
         for mu in range(4):
             eslash[mu][:] = 0
@@ -113,6 +125,25 @@ class Simulation:
             for a in range(4):
                 eslash[mu] += g.gamma[a].tensor() * self.e[mu][a]
         return eslash
+
+    def make_einvslash(self,):
+        """ Make the slashed version of the inverse tetrads."""
+        eslash = [g.mspin(self.grid) for mu in range(4)]
+        self.einv = self.inverse_tetrad()
+        for mu in range(4):
+            eslash[mu][:] = 0
+        for mu in range(4):
+            for a in range(4):
+                eslash[mu] += g.gamma[a].tensor() * self.einv[a][mu]
+        return eslash
+
+    def make_ginv(self,):
+        einvslash = self.make_einvslash()
+        ginv = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]            
+        for mu, nu in it.product(range(4), repeat=2):
+            ginv[mu][nu][:] = 0
+            ginv[mu][nu] += g.trace(einvslash[mu] * einvslash[nu]) / 4
+        return ginv
 
     def random_links(self, scale=1.0):
         """ Make a lattice of random link variables."""
@@ -128,48 +159,57 @@ class Simulation:
         del lnV, Ji2
         return V
 
-    def build_Bs(self,):
-        """Compute the tensors that measure the violation
-           of the Bianchi identity."""
-        RmunuRnumu = g.real(self.grid)
-        RmunuRnumu[:] = 0 
-        RmunuRmunu = g.real(self.grid)
-        RmunuRmunu[:] = 0
-        BmunuBmunu = g.real(self.grid)
-        BmunuBmunu[:] = 0
-
-        BmunurhosigBmunurhosig = g.real(self.grid)
-        BmunurhosigBmunurhosig[:] = 0
-        eslash = self.make_eslash()
-        for (mu, nu, rho, sig) in it.product(range(4), repeat=4):
-            if (rho == mu) or (sig == nu):
-                pass
-            else:
-                Grhomu = g.qcd.gauge.field_strength(self.U, rho, mu)
-                Gsignu = g.qcd.gauge.field_strength(self.U, sig, nu)
-                RmunuRnumu += (g.trace(Grhomu * eslash[rho] * eslash[nu]) *
-                               g.trace(Gsignu * eslash[sig] * eslash[mu]))
-            if (mu == nu) or (rho == sig):
-                pass
-            else:
-                Gmunu = g.qcd.gauge.field_strength(self.U, mu, mu)
-                Grhosig = g.qcd.gauge.field_strength(self.U, rho, sig)
-                RmunurhosigRmunurhosig = (g.trace(Gmunu * Grhosig) *
-                                          (g.trace(eslash[mu] * eslash[rho]) / 4) *
-                                          (g.trace(eslash[nu] * eslash[sig]) / 4))
-                RmunuRmunu += (g.trace(eslash[mu] * Gmunu * Grhosig * eslash[rho])
-                               * g.trace(eslash[nu] * eslash[sig]) / 4
-                               -
-                               2 * RmunurhosigRmunurhosig
-                               ) / 8
-                BmunurhosigBmunurhosig += ((3 * g.trace(eslash[sig] * Gmunu *
-                                                        Grhosig * eslash[nu])
-                                            * (g.trace(eslash[mu] * eslash[rho]) / 4)
-                                            / 4) +
-                                           3 * RmunurhosigRmunurhosig / 2)
-        BmunuBmunu = (2 * RmunuRmunu - 2 * RmunuRnumu)
-        return (g.eval(BmunuBmunu), g.eval(BmunurhosigBmunurhosig))
+    def build_Bmunu_squared(self,):
+        """Compute Bmunu squared."""
+        ricci = self.make_ricci()
+        ginv = self.make_ginv()
+        temp1 = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
+        temp2 = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
+        riccisq = g.real(self.grid)
+        riccisq[:] = 0
+        riccitwist = g.real(self.grid)
+        riccitwist[:] = 0
+        for mu, nu in it.product(range(4), repeat=2):
+            temp1[mu][nu][:] = 0
+            temp2[mu][nu][:] = 0
+        for mu, nu, sig in it.product(range(4), repeat=3):
+            temp1[sig][nu] += ricci[mu][nu] * ginv[mu][sig]
+        for mu, nu, sig in it.product(range(4), repeat=3):
+            temp2[mu][sig] += temp1[mu][nu] * ginv[nu][sig]
+        for mu, nu in it.product(range(4), repeat=2):
+            riccisq += ricci[mu][nu] * temp2[mu][nu]
+            riccitwist += ricci[mu][nu] * temp2[nu][mu]
+        Bsmallsq @= 2 * riccisq - 2*riccitwist
+        return Bsmallsq
             
+    def make_ricci(self,):
+        eslash = self.make_eslash()
+        Ricci = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
+        for mu, nu in it.product(range(4), repeat=2):
+            Ricci[mu][nu][:] = 0
+        einvslash = self.make einvslash()
+        for sig, mu, nu in it.product(range(4), repeat=3):
+            if sig == mu:
+                continue
+            Gsigmu = g.qcd.gauge.field_strength(self.U, sig, mu)
+            Ricci[mu][nu] += -1 * g.trace(Gsigmu * einvslash[sig] * eslash[nu]) / 8
+        return Ricci
+            
+            
+    def make_riemann(self,):
+        eslash = self.make_eslash()
+        Riemann = [[[[g.real(self.grid) for mu in range(4)] for nu in range(4)]
+                    for rho in range(4)] for sig in range(4)]
+        for mu, nu, rho, sig in it.product(range(4), repeat=4):
+            Riemann[mu][nu][rho][sig][:] = 0
+        for mu,nu,rho,sig in it.product(range(4), repeat=4):
+            if sig == mu:
+                continue
+            if rho == nu:
+                continue
+            Gsigmu = g.qcd.gauge.field_strength(U, sig, mu)
+            Riemann[sig][mu][rho][nu] += (-1 * g.trace(Gsigmu * eslash[rho] * eslash[nu]) / 8)
+        return Riemann
 
         
     
