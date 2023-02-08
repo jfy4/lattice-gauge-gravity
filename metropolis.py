@@ -181,6 +181,19 @@ class Simulation:
             riccitwist += ricci[mu][nu] * temp2[nu][mu]
         Bsmallsq @= 2 * riccisq - 2*riccitwist
         return Bsmallsq
+
+    def symmetric_clover(self, U, mu, nu):
+        """ Create the symmetric clover, H, from the notes."""
+        assert mu != nu
+        # v = staple_up + staple_down
+        v = g.eval(
+            g.cshift(U[nu], mu, 1) * g.adj(g.cshift(U[mu], nu, 1)) * g.adj(U[nu])
+            + g.cshift(g.adj(g.cshift(U[nu], mu, 1)) * g.adj(U[mu]) * U[nu], nu, -1)
+        )
+        
+        F = g.eval(U[mu] * v + g.cshift(v * U[mu], mu, -1))
+        F @= 0.125 * (F + g.adj(F))
+        return F
             
     def make_ricci(self,):
         eslash = self.make_eslash()
