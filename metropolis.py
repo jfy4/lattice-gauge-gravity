@@ -655,7 +655,7 @@ if __name__ == "__main__":
 
     lattice = Simulation(L)
     # lattice.load_config("./k1.0_lam1.0_a1.0_K1.0_L4/fields_k1.0_lam1.0_a1.0_K1.0_L4_swp1169.hdf5")
-    lattice.run(measurement_rate=1)
+    lattice.run(omega=1., measurement_rate=1)
     
             
             
