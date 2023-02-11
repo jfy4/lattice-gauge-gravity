@@ -1,9 +1,9 @@
 #!/miniconda3/bin/python
 
 import os
-os.environ["MKL_NUM_THREADS"] = "4"
-os.environ["NUMEXPR_NUM_THREADS"] = "4"
-os.environ["OMP_NUM_THREADS"] = "4"
+# os.environ["MKL_NUM_THREADS"] = "4"
+# os.environ["NUMEXPR_NUM_THREADS"] = "4"
+# os.environ["OMP_NUM_THREADS"] = "4"
 import gpt as g
 import itertools as it
 import numpy as np
@@ -635,27 +635,30 @@ def three_levi():
                 arr[i][(j,k,l)] = -1
     return arr
 
+levi = make_levi()
+levi3 = three_levi()
 
 
-if __name__ == "__main__":
 
-    # initialize lattice
+# if __name__ == "__main__":
+
+#     # initialize lattice
     
-    # parameters
-    # kappa = 1.
-    # lam = 1.
-    # K = 1.
-    # omega = 1.
-    # alpha = 1.
-    L = 4
+#     # parameters
+#     # kappa = 1.
+#     # lam = 1.
+#     # K = 1.
+#     # omega = 1.
+#     # alpha = 1.
+#     L = 4
 
-    # make the levi tensors
-    levi = make_levi()
-    levi3 = three_levi()
+#     # make the levi tensors
+#     levi = make_levi()
+#     levi3 = three_levi()
 
-    lattice = Simulation(L)
-    # lattice.load_config("./k1.0_lam1.0_a1.0_K1.0_L4/fields_k1.0_lam1.0_a1.0_K1.0_L4_swp1169.hdf5")
-    lattice.run(omega=1., measurement_rate=1)
+#     lattice = Simulation(L)
+#     # lattice.load_config("./k1.0_lam1.0_a1.0_K1.0_L4/fields_k1.0_lam1.0_a1.0_K1.0_L4_swp1169.hdf5")
+#     lattice.run(omega=1., measurement_rate=1)
     
             
             
