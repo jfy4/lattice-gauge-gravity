@@ -91,6 +91,7 @@ class Simulation:
 
             
     def inverse_tetrad(self, ):
+        """ compute the inverse tetrad."""
         edet = det(e)
         self.einv = [[g.real(grid) for mu in range(4)] for a in range(4)]
         for a in range(0,4):
@@ -202,6 +203,7 @@ class Simulation:
         return F
             
     def make_ricci(self,):
+        """ Make the Ricci curvature tensor."""
         eslash = self.make_eslash()
         Ricci = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
         for mu, nu in it.product(range(4), repeat=2):
@@ -216,11 +218,30 @@ class Simulation:
             
             
     def make_riemann(self,):
+        """ Make the Riemann curvature tensor."""
         eslash = self.make_eslash()
+        einvslash = self.make_einvslash()
         Riemann = [[[[g.real(self.grid) for mu in range(4)] for nu in range(4)]
                     for rho in range(4)] for sig in range(4)]
+        Riemann_up = [[[[g.real(self.grid) for mu in range(4)] for nu in range(4)]
+                    for rho in range(4)] for sig in range(4)]
+        ginv = self.make_ginv()
+        G_up = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
+        temp1 = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
+        for mu, nu in it.product(range(4), repeat=2):
+            G_up[mu][nu][:] = 0
+            temp1[mu][nu][:] = 0
         for mu, nu, rho, sig in it.product(range(4), repeat=4):
             Riemann[mu][nu][rho][sig][:] = 0
+            Riemann_up[mu][nu][rho][sig][:] = 0
+        for mu, nu, sig in it.product(range(4), repeat=3):
+            if sig == nu:
+                continue
+            temp1[mu][nu] += ginv[mu][sig] * g.qcd.gauge.field_strength(U, sig, nu)
+        for mu, nu, sig in it.product(range(4), repeat=3):
+            if sig == mu:
+                continue
+            G_up[mu][nu] +=  temp1[mu][sig] * ginv[sig][nu]
         for mu,nu,rho,sig in it.product(range(4), repeat=4):
             if sig == mu:
                 continue
@@ -228,8 +249,19 @@ class Simulation:
                 continue
             Gsigmu = g.qcd.gauge.field_strength(U, sig, mu)
             Riemann[sig][mu][rho][nu] += (-1 * g.trace(Gsigmu * eslash[rho] * eslash[nu]) / 8)
-        return Riemann
+            Riemann_up[sig][mu][rho][nu] += (-1 * g.trace(G_up[sig][mu] * einvslash[rho] * einvslash[nu]) / 8)
+        return (Riemann, Riemann_up)
 
+
+    def make_Bmunurhosig_squared(self,):
+        riemann, riemann_up = self.make_riemann()
+        BigBsquared = g.real(self.grid)
+        BigBsquared[:] = 0
+        for mu, nu, rho, sig in it.product(range(4), repeat=4):
+            BigBsquared += (3 * riemann[mu][nu][rho][sig] * riemann_up[mu][nu][rho][sig]
+                            +
+                            6 * riemann[mu][nu][rho][sig] * riemann_up[mu][rho][sig][nu])
+        return BigBsquared
         
     
     def compute_action(self,):
