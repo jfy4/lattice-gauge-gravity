@@ -34,10 +34,11 @@ class Simulation:
         self.make_initial_mask()
 
 
-    def load_config(self, fields_path):
+    def load_config(self, fields_path, swp_number):
         """Load saved gauge and tetrad fields."""
         self.load = True
         fields = h5py.File(fields_path, 'r')
+        swp = swp_number
 
         self.kappa = fields.attrs['kappa']
         self.lam = fields.attrs['lambda']
@@ -46,18 +47,19 @@ class Simulation:
         self.omega = fields.attrs['omega']
         self.zeta = fields.attrs['zeta']
         self.eta = fields.attrs['eta']
-        self.swp_count = fields.attrs['sweep']
+        self.swp_count = swp
         self.rng = g.random(str(self.swp_count)) # initialize random seed
         assert self.L == fields.attrs['L']
         
         for mu in range(4):
-            self.U[mu][:] = fields['gauge'][str(mu)][:]
+            self.U[mu][:] = fields['sweep'][str(swp)]['gauge'][str(mu)][:]
             for a in range(4):
-                self.e[mu][a][:] = fields['tetrad'][str(mu)][str(a)][:] + 0j
+                self.e[mu][a][:] = fields['sweep'][str(swp)]['tetrad'][str(mu)][str(a)][:] + 0j
         g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, K = {self.K}, omega = {self.omega}, zeta = {self.zeta}, eta = {self.eta}")
+        fields.close()
         
 
-    def save_config(self,):
+    def save_config(self, path):
         """ Save field configurations."""
         kappa = str(np.round(self.kappa, 8))
         lam = str(np.round(self.lam, 8))
@@ -66,34 +68,36 @@ class Simulation:
         omega = str(np.round(self.omega, 8))
         zeta = str(np.round(self.zeta, 8))
         eta = str(np.round(self.eta, 8))
-        current_path = ("./k" + kappa + "_lam" + lam
-                        + "_a" + alpha + "_K" + K + "_o" + omega +
-                        "_z" + zeta + "_e" + eta +
-                        "_L" + str(self.L) + "/")
-        try:
-            os.mkdir(current_path)
-        except FileExistsError:
-            pass
-        f = h5py.File(current_path + "fields_k" + kappa + "_lam" + lam
+        # current_path = ("./k" + kappa + "_lam" + lam
+        #                 + "_a" + alpha + "_K" + K + "_o" + omega +
+        #                 "_z" + zeta + "_e" + eta +
+        #                 "_L" + str(self.L) + "/")
+        # try:
+        #     os.mkdir(current_path)
+        # except FileExistsError:
+        #     pass
+        f = h5py.File(path + "fields_k" + kappa + "_lam" + lam
                       + "_a" + alpha + "_K" + K + "_o" + omega +
                       "_z" + zeta + "_e" + eta + "_L" + str(self.L)
-                      + "_swp" + str(self.swp_count) + ".hdf5", 'w')
-        f.attrs['kappa'] = self.kappa
-        f.attrs['lambda'] = self.lam
-        f.attrs['alpha'] = self.alpha
-        f.attrs['K'] = self.K
-        f.attrs['omega'] = self.omega
-        f.attrs['zeta'] = self.zeta
-        f.attrs['eta'] = self.eta
-        f.attrs['sweep'] = self.swp_count
-        f.attrs['L'] = self.L
+                      + ".hdf5", 'a')
+        if self.swp_count == 0:
+            f.attrs['kappa'] = self.kappa
+            f.attrs['lambda'] = self.lam
+            f.attrs['alpha'] = self.alpha
+            f.attrs['K'] = self.K
+            f.attrs['omega'] = self.omega
+            f.attrs['zeta'] = self.zeta
+            f.attrs['eta'] = self.eta
+            # f.attrs['sweep'] = self.swp_count
+            f.attrs['L'] = self.L
         for mu in range(4):
-            f.create_dataset("gauge/" + str(mu), data=self.U[mu][:])
+            f.create_dataset("sweep/" + str(self.swp_count) + "/gauge/" + str(mu), data=self.U[mu][:])
             for a in range(4):
-                f.create_dataset("tetrad/" + str(mu) + "/" + str(a), data=np.real(self.e[mu][a][:]))
+                f.create_dataset("sweep/" + str(self.swp_count) + "/tetrad/" + str(mu) + "/" + str(a), data=np.real(self.e[mu][a][:]))
         R, dete = self.compute_obs()
-        f.create_dataset("obs/R", data=np.real(R[:]))
-        f.create_dataset("obs/dete", data=np.real(dete[:]))
+        f.create_dataset("sweep/" + str(self.swp_count) + "/obs/R", data=np.real(R[:]))
+        f.create_dataset("sweep/" + str(self.swp_count) + "/obs/dete", data=np.real(dete[:]))
+        f.close()
 
 
             
@@ -594,7 +598,7 @@ class Simulation:
         self.update_links()
         self.update_tetrads()
 
-    def run(self, kappa=1., lam=1., alpha=1., K=1., omega=1., zeta=1., eta=1., measurement_rate=20, uacpt_rate=0.6, eacpt_rate=0.6):
+    def run(self, path="./", kappa=1., lam=1., alpha=1., K=1., omega=1., zeta=1., eta=1., measurement_rate=20, uacpt_rate=0.6, eacpt_rate=0.6):
         """ Runs the Metropolis algorithm."""
         self.Uinc = 0.4
         self.einc = 0.4
@@ -613,18 +617,19 @@ class Simulation:
             self.K = np.float64(K)
             self.alpha = np.float64(alpha)
             self.omega = np.float64(omega)
-            self.zeta = zeta
-            self.eta = eta
+            self.zeta = np.float64(zeta)
+            self.eta = np.float64(eta)
             g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, K = {self.K}, omega = {self.omega}, zeta = {self.zeta}, eta = {self.eta}")
+            self.save_config(path)
         # self.check_R()
         while True:
-            self.sweep(self.swp_count)
-            if (self.swp_count % self.meas_rate == 0):
-                self.save_config()
-                pass
+            self.sweep()
             self.swp_count += 1
+            if (self.swp_count % self.meas_rate == 0):
+                self.save_config(path)
+                pass
 
-    def sweep(self, swp):
+    def sweep(self,):
         """ Performs a single sweep of the lattice for the links and tetrads."""
         plaq = g.qcd.gauge.plaquette(self.U)
         R_2x1 = g.qcd.gauge.rectangle(self.U, 2, 1)
@@ -645,9 +650,9 @@ class Simulation:
             self.einc -= self.de_step
         else:
             self.einc += self.de_step
-        g.message(f"Metropolis {swp} has det = {the_det}, P = {plaq}, R_2x1 = {R_2x1}, act = {act}")
-        g.message(f"Metropolis {swp} has link acceptance = {link_acceptance}, and tetrad acceptance = {tet_acceptance}")
-        g.message(f"Metropolis {swp} has link step = {self.Uinc}, and tetrad step = {self.einc}")
+        g.message(f"Metropolis {self.swp_count} has det = {the_det}, P = {plaq}, R_2x1 = {R_2x1}, act = {act}")
+        g.message(f"Metropolis {self.swp_count} has link acceptance = {link_acceptance}, and tetrad acceptance = {tet_acceptance}")
+        g.message(f"Metropolis {self.swp_count} has link step = {self.Uinc}, and tetrad step = {self.einc}")
         # self.check = g.real(self.grid)
         # self.check[:] = 0
         for coord in it.product(range(2), repeat=4):
@@ -720,26 +725,3 @@ levi = make_levi()
 levi3 = three_levi()
 
 
-
-# if __name__ == "__main__":
-
-#     # initialize lattice
-    
-#     # parameters
-#     # kappa = 1.
-#     # lam = 1.
-#     # K = 1.
-#     # omega = 1.
-#     # alpha = 1.
-#     L = 4
-
-#     # make the levi tensors
-#     levi = make_levi()
-#     levi3 = three_levi()
-
-#     lattice = Simulation(L)
-#     # lattice.load_config("./k1.0_lam1.0_a1.0_K1.0_L4/fields_k1.0_lam1.0_a1.0_K1.0_L4_swp1169.hdf5")
-#     lattice.run(omega=1., measurement_rate=1)
-    
-            
-            
