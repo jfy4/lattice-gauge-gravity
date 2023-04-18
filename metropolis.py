@@ -620,7 +620,7 @@ class Simulation:
             self.zeta = np.float64(zeta)
             self.eta = np.float64(eta)
             g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, K = {self.K}, omega = {self.omega}, zeta = {self.zeta}, eta = {self.eta}")
-            self.save_config(path)
+            # self.save_config(path)
         # self.check_R()
         while True:
             self.sweep()
