@@ -1,4 +1,4 @@
-#!/miniconda3/bin/python
+#!/nashome/j/junmuthy/miniconda3/bin/python
 
 import os
 # os.environ["MKL_NUM_THREADS"] = "4"
