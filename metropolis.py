@@ -626,7 +626,7 @@ class Simulation:
             self.sweep()
             self.swp_count += 1
             if (self.swp_count % self.meas_rate == 0):
-                self.save_config(path)
+                # self.save_config(path)
                 pass
 
     def sweep(self,):
