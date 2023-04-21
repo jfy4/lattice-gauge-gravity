@@ -43,6 +43,8 @@ class Simulation:
         self.kappa = fields.attrs['kappa']
         self.lam = fields.attrs['lambda']
         self.alpha = fields.attrs['alpha']
+        self.beta = fields.attrs['beta']
+        self.gamma = fields.attrs['gamma']
         self.K = fields.attrs['K']
         self.omega = fields.attrs['omega']
         self.zeta = fields.attrs['zeta']
@@ -55,7 +57,7 @@ class Simulation:
             self.U[mu][:] = fields['sweep'][str(swp)]['gauge'][str(mu)][:]
             for a in range(4):
                 self.e[mu][a][:] = fields['sweep'][str(swp)]['tetrad'][str(mu)][str(a)][:] + 0j
-        g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, K = {self.K}, omega = {self.omega}, zeta = {self.zeta}, eta = {self.eta}")
+        g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, zeta = {self.zeta}, eta = {self.eta}")
         fields.close()
         
 
@@ -64,6 +66,8 @@ class Simulation:
         kappa = str(np.round(self.kappa, 8))
         lam = str(np.round(self.lam, 8))
         alpha = str(np.round(self.alpha, 8))
+        beta = str(np.round(self.beta, 8))
+        gamma = str(np.round(self.gamma, 8))
         K = str(np.round(self.K, 8))
         omega = str(np.round(self.omega, 8))
         zeta = str(np.round(self.zeta, 8))
@@ -76,28 +80,34 @@ class Simulation:
         #     os.mkdir(current_path)
         # except FileExistsError:
         #     pass
-        f = h5py.File(path + "fields_k" + kappa + "_lam" + lam
-                      + "_a" + alpha + "_K" + K + "_o" + omega +
-                      "_z" + zeta + "_e" + eta + "_L" + str(self.L)
-                      + ".hdf5", 'a')
-        if self.swp_count == 0:
-            f.attrs['kappa'] = self.kappa
-            f.attrs['lambda'] = self.lam
-            f.attrs['alpha'] = self.alpha
-            f.attrs['K'] = self.K
-            f.attrs['omega'] = self.omega
-            f.attrs['zeta'] = self.zeta
-            f.attrs['eta'] = self.eta
-            # f.attrs['sweep'] = self.swp_count
-            f.attrs['L'] = self.L
-        for mu in range(4):
-            f.create_dataset("sweep/" + str(self.swp_count) + "/gauge/" + str(mu), data=self.U[mu][:])
-            for a in range(4):
-                f.create_dataset("sweep/" + str(self.swp_count) + "/tetrad/" + str(mu) + "/" + str(a), data=np.real(self.e[mu][a][:]))
-        R, dete = self.compute_obs()
-        f.create_dataset("sweep/" + str(self.swp_count) + "/obs/R", data=np.real(R[:]))
-        f.create_dataset("sweep/" + str(self.swp_count) + "/obs/dete", data=np.real(dete[:]))
-        f.close()
+        #cfg_file = path + "fields_k" + kappa + "_lam" + lam
+        cfg_file = (path + "SO4_k" + kappa + "_l" + lam
+                      + "_a" + alpha + "_b" + beta + "_g" + gamma
+                      + "_K" + K + "_o" + omega
+                      + "_z" + zeta + "_e" + eta + "_L" + str(self.L)
+                      + "_" + str(self.swp_count) + ".hdf5")
+        grid = self.U[0].grid
+        if grid.processor == 0:
+            with h5py.File(cfg_file, "w") as f:
+                if self.swp_count == 0:
+                    f.attrs['kappa'] = self.kappa
+                    f.attrs['lambda'] = self.lam
+                    f.attrs['alpha'] = self.alpha
+                    f.attrs['beta'] = self.beta
+                    f.attrs['gamma'] = self.gamma
+                    f.attrs['K'] = self.K
+                    f.attrs['omega'] = self.omega
+                    f.attrs['zeta'] = self.zeta
+                    f.attrs['eta'] = self.eta
+                    # f.attrs['sweep'] = self.swp_count
+                    f.attrs['L'] = self.L
+                for mu in range(4):
+                    f.create_dataset("sweep/" + str(self.swp_count) + "/gauge/" + str(mu), data=self.U[mu][:])
+                    for a in range(4):
+                        f.create_dataset("sweep/" + str(self.swp_count) + "/tetrad/" + str(mu) + "/" + str(a), data=np.real(self.e[mu][a][:]))
+                R, dete = self.compute_obs()
+                f.create_dataset("sweep/" + str(self.swp_count) + "/obs/R", data=np.real(R[:]))
+                f.create_dataset("sweep/" + str(self.swp_count) + "/obs/dete", data=np.real(dete[:]))
 
 
             
@@ -598,7 +608,7 @@ class Simulation:
         self.update_links()
         self.update_tetrads()
 
-    def run(self, path="./", kappa=1., lam=1., alpha=1., K=1., omega=1., zeta=1., eta=1., measurement_rate=20, uacpt_rate=0.6, eacpt_rate=0.6):
+    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., zeta=1., eta=1., measurement_rate=20, uacpt_rate=0.6, eacpt_rate=0.6):
         """ Runs the Metropolis algorithm."""
         self.Uinc = 0.4
         self.einc = 0.4
@@ -616,17 +626,19 @@ class Simulation:
             self.lam = np.float64(lam)
             self.K = np.float64(K)
             self.alpha = np.float64(alpha)
+            self.beta = np.float64(beta)
+            self.gamma = np.float64(gamma)
             self.omega = np.float64(omega)
             self.zeta = np.float64(zeta)
             self.eta = np.float64(eta)
-            g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, K = {self.K}, omega = {self.omega}, zeta = {self.zeta}, eta = {self.eta}")
+            g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, zeta = {self.zeta}, eta = {self.eta}")
             # self.save_config(path)
         # self.check_R()
         while True:
             self.sweep()
             self.swp_count += 1
             if (self.swp_count % self.meas_rate == 0):
-                # self.save_config(path)
+                self.save_config(path)
                 pass
 
     def sweep(self,):
