@@ -1,4 +1,4 @@
-#!/miniconda3/bin/python
+#!/nashome/j/junmuthy/miniconda3/bin/python
 
 import os
 # os.environ["MKL_NUM_THREADS"] = "4"
@@ -43,6 +43,8 @@ class Simulation:
         self.kappa = fields.attrs['kappa']
         self.lam = fields.attrs['lambda']
         self.alpha = fields.attrs['alpha']
+        self.beta = fields.attrs['beta']
+        self.gamma = fields.attrs['gamma']
         self.K = fields.attrs['K']
         self.omega = fields.attrs['omega']
         self.zeta = fields.attrs['zeta']
@@ -55,7 +57,7 @@ class Simulation:
             self.U[mu][:] = fields['sweep'][str(swp)]['gauge'][str(mu)][:]
             for a in range(4):
                 self.e[mu][a][:] = fields['sweep'][str(swp)]['tetrad'][str(mu)][str(a)][:] + 0j
-        g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, K = {self.K}, omega = {self.omega}, zeta = {self.zeta}, eta = {self.eta}")
+        g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, zeta = {self.zeta}, eta = {self.eta}")
         fields.close()
         
 
@@ -64,6 +66,8 @@ class Simulation:
         kappa = str(np.round(self.kappa, 8))
         lam = str(np.round(self.lam, 8))
         alpha = str(np.round(self.alpha, 8))
+        beta = str(np.round(self.beta, 8))
+        gamma = str(np.round(self.gamma, 8))
         K = str(np.round(self.K, 8))
         omega = str(np.round(self.omega, 8))
         zeta = str(np.round(self.zeta, 8))
@@ -76,28 +80,51 @@ class Simulation:
         #     os.mkdir(current_path)
         # except FileExistsError:
         #     pass
-        f = h5py.File(path + "fields_k" + kappa + "_lam" + lam
-                      + "_a" + alpha + "_K" + K + "_o" + omega +
-                      "_z" + zeta + "_e" + eta + "_L" + str(self.L)
-                      + ".hdf5", 'a')
-        if self.swp_count == 0:
-            f.attrs['kappa'] = self.kappa
-            f.attrs['lambda'] = self.lam
-            f.attrs['alpha'] = self.alpha
-            f.attrs['K'] = self.K
-            f.attrs['omega'] = self.omega
-            f.attrs['zeta'] = self.zeta
-            f.attrs['eta'] = self.eta
-            # f.attrs['sweep'] = self.swp_count
-            f.attrs['L'] = self.L
-        for mu in range(4):
-            f.create_dataset("sweep/" + str(self.swp_count) + "/gauge/" + str(mu), data=self.U[mu][:])
-            for a in range(4):
-                f.create_dataset("sweep/" + str(self.swp_count) + "/tetrad/" + str(mu) + "/" + str(a), data=np.real(self.e[mu][a][:]))
+        #cfg_file = path + "fields_k" + kappa + "_lam" + lam
+        cfg_file = (path + "Spin4_k" + kappa + "_l" + lam
+                      + "_a" + alpha + "_b" + beta + "_g" + gamma
+                      + "_K" + K + "_o" + omega
+                      + "_z" + zeta + "_e" + eta + "_L" + str(self.L)
+                      + "_" + str(self.swp_count) + ".hdf5")
+        g.message("saving to ", cfg_file)
         R, dete = self.compute_obs()
-        f.create_dataset("sweep/" + str(self.swp_count) + "/obs/R", data=np.real(R[:]))
-        f.create_dataset("sweep/" + str(self.swp_count) + "/obs/dete", data=np.real(dete[:]))
-        f.close()
+        g.message("measured observables")
+        R_np = np.real(R[:])
+        dete_np = np.real(dete[:])
+        grid = self.U[0].grid
+        g.message("converted to numpy")
+        if grid.processor == 0:
+            f = h5py.File(cfg_file, "w")
+            g.message("opened database")
+        if self.swp_count == 0:
+            if grid.processor == 0:
+                f.attrs['kappa'] = self.kappa
+                f.attrs['lambda'] = self.lam
+                f.attrs['alpha'] = self.alpha
+                f.attrs['beta'] = self.beta
+                f.attrs['gamma'] = self.gamma
+                f.attrs['K'] = self.K
+                f.attrs['omega'] = self.omega
+                f.attrs['zeta'] = self.zeta
+                f.attrs['eta'] = self.eta
+                # f.attrs['sweep'] = self.swp_count
+                f.attrs['L'] = self.L
+                g.message("saved metadata")
+        if grid.processor == 0:
+            f.create_dataset("sweep/" + str(self.swp_count) + "/obs/R", data=R_np)
+            f.create_dataset("sweep/" + str(self.swp_count) + "/obs/dete", data=dete_np)
+        g.message("saved R and e")
+        for mu in range(4):
+            U_np = self.U[mu][:]
+            if grid.processor == 0:
+                f.create_dataset("sweep/" + str(self.swp_count) + "/gauge/" + str(mu), data=U_np)
+            for a in range(4):
+                e_np = np.real(self.e[mu][a][:])
+                if grid.processor == 0:
+                    f.create_dataset("sweep/" + str(self.swp_count) + "/tetrad/" + str(mu) + "/" + str(a), data=e_np)
+        g.message("saved U_mu and e_mu^a")
+        if grid.processor == 0:
+            f.close()
 
 
             
@@ -248,9 +275,9 @@ class Simulation:
         ricci = self.make_ricci()
         for mu, nu in it.product(range(4), repeat=2):
             Rcheck3 += ricci[mu][nu] * ginv[mu][nu]
-        print("Rcheck", Rcheck[0,0,0,0])
-        print("Rcheck2", Rcheck2[0,0,0,0])
-        print("Rcheck3", Rcheck3[0,0,0,0])
+        g.message("Rcheck", Rcheck[0,0,0,0])
+        g.message("Rcheck2", Rcheck2[0,0,0,0])
+        g.message("Rcheck3", Rcheck3[0,0,0,0])
         for idx, val in levi.items():
             mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
@@ -258,7 +285,7 @@ class Simulation:
         R /= 16
         dete = det(self.e)
         R *= g.component.inv(dete)
-        print("real R", R[0,0,0,0])
+        g.message("real R", R[0,0,0,0])
         assert False
             
             
@@ -375,10 +402,10 @@ class Simulation:
         Emutilde[:] = 0
         eslash = self.make_eslash()
         sign_x_plus_mu = g.cshift(sign(det(self.e)), mu, 1)
-        # print(eslash[mu])
+        # g.message(eslash[mu])
         # assert False
         for (nu,rho,sig), val in levi3[mu].items():
-            # print(nu,rho,sig, val)
+            # g.message(nu,rho,sig, val)
             sign_x_minus_nu = g.cshift(sign(det(self.e)), nu, -1)
             sign_x_plus_nu = g.cshift(sign(det(self.e)), nu, 1)
             
@@ -543,8 +570,8 @@ class Simulation:
             self.link_acpt.insert(0, acpt_amount)
             self.U[mu] @= g.where(accept, lp, lo)
         del lp, lo, V, V_eye, action, action_prime, prob, rn, accept
-            # print(links[mu][0,0,0,0], lo[0,0,0,0], lp[0,0,0,0])
-            # print('==================')
+            # g.message(links[mu][0,0,0,0], lo[0,0,0,0], lp[0,0,0,0])
+            # g.message('==================')
         
         
     def update_tetrads(self,):
@@ -557,23 +584,23 @@ class Simulation:
                 ii_eye[:] = 0
                 ii = self.random_shift(scale=self.einc)
                 ii = g.where(self.mask, ii, ii_eye)
-                # print(ii[:])
+                # g.message(ii[:])
                 # assert False
                 eo = self.e[mu][a]
                 # dete = det(self.e)
-                # print(eo[0,0,0,0])
+                # g.message(eo[0,0,0,0])
                 ep = g.eval(ii + eo)
-                # print(ep[0,0,0,0])
-                # print(ep, e[mu][a])
+                # g.message(ep[0,0,0,0])
+                # g.message(ep, e[mu][a])
                 # assert False
                 # e_prime = 1
                 self.e[mu][a] = g.eval(ii + eo)
                 # detep = det(self.e)
-                # print(eo[0,0,0,0], e[mu][a][0,0,0,0])
-                # print(e[mu][a][0,0,0,0], e_prime[mu][a][0,0,0,0])
+                # g.message(eo[0,0,0,0], e[mu][a][0,0,0,0])
+                # g.message(e[mu][a][0,0,0,0], e_prime[mu][a][0,0,0,0])
                 action_prime = self.compute_action()
                 # action_prime = self.compute_tet_action(mu)
-                # print(np.sum(g.eval(action_prime)[:]), np.sum(g.eval(action)[:]))
+                # g.message(np.sum(g.eval(action_prime)[:]), np.sum(g.eval(action)[:]))
                 # meas = g.component.pow(self.K)(g.component.abs(detep) * g.component.inv(g.component.abs(dete)))
                 # prob = g.eval(g.component.exp(action - action_prime) * meas)
                 prob = g.eval(g.component.exp(action - action_prime))
@@ -586,9 +613,9 @@ class Simulation:
                 self.tet_acpt.insert(0, acpt_amount)
                 self.e[mu][a] @= g.where(accept, ep, eo)
         del action, ii_eye, ii, eo, ep, action_prime, prob, rn, accept
-                # print(e[mu][a][0,0,0,0], eo[0,0,0,0], ep[0,0,0,0])
-                # print(np.sum(g.eval(compute_tet_action(links, e, mu))[:]))
-                # print('==================')
+                # g.message(e[mu][a][0,0,0,0], eo[0,0,0,0], ep[0,0,0,0])
+                # g.message(np.sum(g.eval(compute_tet_action(links, e, mu))[:]))
+                # g.message('==================')
 
 
             
@@ -598,7 +625,7 @@ class Simulation:
         self.update_links()
         self.update_tetrads()
 
-    def run(self, path="./", kappa=1., lam=1., alpha=1., K=1., omega=1., zeta=1., eta=1., measurement_rate=20, uacpt_rate=0.6, eacpt_rate=0.6):
+    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., zeta=1., eta=1., measurement_rate=20, uacpt_rate=0.6, eacpt_rate=0.6):
         """ Runs the Metropolis algorithm."""
         self.Uinc = 0.4
         self.einc = 0.4
@@ -616,17 +643,19 @@ class Simulation:
             self.lam = np.float64(lam)
             self.K = np.float64(K)
             self.alpha = np.float64(alpha)
+            self.beta = np.float64(beta)
+            self.gamma = np.float64(gamma)
             self.omega = np.float64(omega)
             self.zeta = np.float64(zeta)
             self.eta = np.float64(eta)
-            g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, K = {self.K}, omega = {self.omega}, zeta = {self.zeta}, eta = {self.eta}")
+            g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, zeta = {self.zeta}, eta = {self.eta}")
             # self.save_config(path)
         # self.check_R()
         while True:
             self.sweep()
             self.swp_count += 1
             if (self.swp_count % self.meas_rate == 0):
-                # self.save_config(path)
+                self.save_config(path)
                 pass
             return
 
@@ -661,7 +690,7 @@ class Simulation:
             self.mask = g.cshift(g.cshift(g.cshift(g.cshift(self.starting_ones, 0, shift0), 1, shift1), 2, shift2), 3, shift3)
             self.update_fields()
             # self.check += self.mask
-            # print(np.sum(self.check[:]), 4**4)
+            # g.message(np.sum(self.check[:]), 4**4)
             # assert False
 
 
