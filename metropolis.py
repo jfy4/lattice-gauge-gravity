@@ -187,7 +187,7 @@ class Simulation:
         einvslash = self.make_einvslash()
         ginv = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]            
         for mu, nu in it.product(range(4), repeat=2):
-            ginv[mu][nu] = g.trace(einvslash[mu] * einvslash[nu]) / 4
+            ginv[mu][nu] = g.trace(einvslash[mu] * einvslash[nu] / 4)
         return ginv
 
     def random_links(self, scale=1.0):
@@ -251,7 +251,7 @@ class Simulation:
             if sig == mu:
                 continue
             Gsigmu = g.qcd.gauge.field_strength(self.U, sig, mu)
-            Ricci[mu][nu] += -1 * g.trace(Gsigmu * einvslash[sig] * eslash[nu]) / 8
+            Ricci[mu][nu] += g.trace(-1 * Gsigmu * einvslash[sig] * eslash[nu] / 8)
         return Ricci
 
     def check_R(self,):
@@ -268,7 +268,7 @@ class Simulation:
         ginv = self.make_ginv()
         metric = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
         for mu, nu in it.product(range(4), repeat=2):
-            metric[mu][nu] = g.trace(eslash[mu] * eslash[nu]) / 4
+            metric[mu][nu] = g.trace(eslash[mu] * eslash[nu] / 4)
         for mu,nu,rho,sig in it.product(range(4), repeat=4):
             Rcheck += Riemann_up[mu][nu][rho][sig] * metric[mu][rho] * metric[nu][sig]
             Rcheck2 += Riemann[mu][nu][rho][sig] * ginv[mu][rho] * ginv[nu][sig]
@@ -281,7 +281,7 @@ class Simulation:
         for idx, val in levi.items():
             mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
-            R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
+            R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig] * val)
         R /= 16
         dete = det(self.e)
         R *= g.component.inv(dete)
@@ -358,8 +358,8 @@ class Simulation:
         for idx, val in levi.items():
             mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
-            R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
-            vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig]) * val
+            R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig] * val)
+            vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig] * val)
         Rsq += R * R # g.component.pow(2)(R)
         dete = det(self.e)
         absdete = g.component.abs(dete)
@@ -386,7 +386,7 @@ class Simulation:
         for idx, val in levi.items():
             mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
-            R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig]) * val
+            R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig] * val)
         R /= 16
         dete = det(self.e)
         R *= g.eval(g.component.inv(dete))
