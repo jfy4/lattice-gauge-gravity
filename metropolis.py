@@ -204,28 +204,28 @@ class Simulation:
         del lnV, Ji2
         return V
 
-    def build_Bmunu_squared(self,):
-        """Compute Bmunu squared."""
-        ricci = self.make_ricci()
-        ginv = self.make_ginv()
-        temp1 = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
-        temp2 = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
-        riccisq = g.real(self.grid)
-        riccisq[:] = 0
-        riccitwist = g.real(self.grid)
-        riccitwist[:] = 0
-        for mu, nu in it.product(range(4), repeat=2):
-            temp1[mu][nu][:] = 0
-            temp2[mu][nu][:] = 0
-        for mu, nu, sig in it.product(range(4), repeat=3):
-            temp1[sig][nu] += ricci[mu][nu] * ginv[mu][sig]
-        for mu, nu, sig in it.product(range(4), repeat=3):
-            temp2[mu][sig] += temp1[mu][nu] * ginv[nu][sig]
-        for mu, nu in it.product(range(4), repeat=2):
-            riccisq += ricci[mu][nu] * temp2[mu][nu]
-            riccitwist += ricci[mu][nu] * temp2[nu][mu]
-        Bsmallsq = 2 * riccisq - 2*riccitwist
-        return Bsmallsq
+    # def build_Bmunu_squared(self,):
+    #     """Compute Bmunu squared."""
+    #     ricci = self.make_ricci()
+    #     ginv = self.make_ginv()
+    #     temp1 = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
+    #     temp2 = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
+    #     riccisq = g.real(self.grid)
+    #     riccisq[:] = 0
+    #     riccitwist = g.real(self.grid)
+    #     riccitwist[:] = 0
+    #     for mu, nu in it.product(range(4), repeat=2):
+    #         temp1[mu][nu][:] = 0
+    #         temp2[mu][nu][:] = 0
+    #     for mu, nu, sig in it.product(range(4), repeat=3):
+    #         temp1[sig][nu] += ricci[mu][nu] * ginv[mu][sig]
+    #     for mu, nu, sig in it.product(range(4), repeat=3):
+    #         temp2[mu][sig] += temp1[mu][nu] * ginv[nu][sig]
+    #     for mu, nu in it.product(range(4), repeat=2):
+    #         riccisq += ricci[mu][nu] * temp2[mu][nu]
+    #         riccitwist += ricci[mu][nu] * temp2[nu][mu]
+    #     Bsmallsq = 2 * riccisq - 2*riccitwist
+    #     return Bsmallsq
 
     def symmetric_clover(self, U, mu, nu):
         """ Create the symmetric clover, H, from the notes."""
@@ -240,19 +240,19 @@ class Simulation:
         F @= 0.125 * (F + g.adj(F))
         return F
             
-    def make_ricci(self,):
-        """ Make the Ricci curvature tensor."""
-        eslash = self.make_eslash()
-        Ricci = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
-        for mu, nu in it.product(range(4), repeat=2):
-            Ricci[mu][nu][:] = 0
-        einvslash = self.make_einvslash()
-        for sig, mu, nu in it.product(range(4), repeat=3):
-            if sig == mu:
-                continue
-            Gsigmu = g.qcd.gauge.field_strength(self.U, sig, mu)
-            Ricci[mu][nu] += g.trace(-1 * Gsigmu * einvslash[sig] * eslash[nu] / 8)
-        return Ricci
+    # def make_ricci(self,):
+    #     """ Make the Ricci curvature tensor."""
+    #     eslash = self.make_eslash()
+    #     Ricci = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
+    #     for mu, nu in it.product(range(4), repeat=2):
+    #         Ricci[mu][nu][:] = 0
+    #     einvslash = self.make_einvslash()
+    #     for sig, mu, nu in it.product(range(4), repeat=3):
+    #         if sig == mu:
+    #             continue
+    #         Gsigmu = g.qcd.gauge.field_strength(self.U, sig, mu)
+    #         Ricci[mu][nu] += g.trace(-1 * Gsigmu * einvslash[sig] * eslash[nu] / 8.)
+    #     return Ricci
 
     def check_R(self,):
         Rcheck = g.real(self.grid)
@@ -289,14 +289,39 @@ class Simulation:
         assert False
             
             
-    def make_riemann(self,):
-        """ Make the Riemann curvature tensor."""
-        eslash = self.make_eslash()
-        einvslash = self.make_einvslash()
-        Riemann = [[[[g.real(self.grid) for mu in range(4)] for nu in range(4)]
-                    for rho in range(4)] for sig in range(4)]
-        Riemann_up = [[[[g.real(self.grid) for mu in range(4)] for nu in range(4)]
-                    for rho in range(4)] for sig in range(4)]
+    # def make_riemann(self,):
+    #     """ Make the Riemann curvature tensor."""
+    #     eslash = self.make_eslash()
+    #     einvslash = self.make_einvslash()
+    #     Riemann = [[[[g.real(self.grid) for mu in range(4)] for nu in range(4)]
+    #                 for rho in range(4)] for sig in range(4)]
+    #     Riemann_up = [[[[g.real(self.grid) for mu in range(4)] for nu in range(4)]
+    #                 for rho in range(4)] for sig in range(4)]
+    #     ginv = self.make_ginv()
+    #     G_up = [[g.lattice(self.U[0]) for mu in range(4)] for nu in range(4)]
+    #     temp1 = [[g.lattice(self.U[0]) for mu in range(4)] for nu in range(4)]
+    #     for mu, nu in it.product(range(4), repeat=2):
+    #         G_up[mu][nu][:] = 0
+    #         temp1[mu][nu][:] = 0
+    #     for mu, nu, sig in it.product(range(4), repeat=3):
+    #         if sig == nu:
+    #             continue
+    #         temp1[mu][nu] += ginv[mu][sig] * g.qcd.gauge.field_strength(self.U, sig, nu)
+    #     for mu, nu, sig in it.product(range(4), repeat=3):
+    #         G_up[mu][nu] +=  temp1[mu][sig] * ginv[sig][nu]
+    #     for mu,nu,rho,sig in it.product(range(4), repeat=4):
+    #         Riemann[sig][mu][rho][nu][:] = 0
+    #         Riemann_up[sig][mu][rho][nu][:] = 0
+    #         if sig == mu:
+    #             continue
+    #         if rho == nu:
+    #             continue
+    #         Gsigmu = g.qcd.gauge.field_strength(self.U, sig, mu)
+    #         Riemann[sig][mu][rho][nu] @= (-1 * g.trace(Gsigmu * eslash[rho] * eslash[nu]) / 8)
+    #         Riemann_up[sig][mu][rho][nu] @= (-1 * g.trace(G_up[sig][mu] * einvslash[rho] * einvslash[nu]) / 8)
+    #     return (Riemann, Riemann_up)
+
+    def make_Gup(self,):
         ginv = self.make_ginv()
         G_up = [[g.lattice(self.U[0]) for mu in range(4)] for nu in range(4)]
         temp1 = [[g.lattice(self.U[0]) for mu in range(4)] for nu in range(4)]
@@ -309,32 +334,74 @@ class Simulation:
             temp1[mu][nu] += ginv[mu][sig] * g.qcd.gauge.field_strength(self.U, sig, nu)
         for mu, nu, sig in it.product(range(4), repeat=3):
             G_up[mu][nu] +=  temp1[mu][sig] * ginv[sig][nu]
-        for mu,nu,rho,sig in it.product(range(4), repeat=4):
-            Riemann[sig][mu][rho][nu][:] = 0
-            Riemann_up[sig][mu][rho][nu][:] = 0
-            if sig == mu:
+        return G_up
+
+    def make_Rtwist(self,):
+        Rtwist = g.real(self.grid)
+        Rtwist[:] = 0
+        einvslash = self.make_einvslash()
+        Gone = [g.lattice(self.U[0]) for mu in range(4)]
+        for mu in range(4):
+            Gone[mu][:] = 0
+        for sig, nu in it.product(range(4), repeat=2):
+            if sig == nu:
                 continue
-            if rho == nu:
-                continue
-            Gsigmu = g.qcd.gauge.field_strength(self.U, sig, mu)
-            Riemann[sig][mu][rho][nu] @= (-1 * g.trace(Gsigmu * eslash[rho] * eslash[nu]) / 8)
-            Riemann_up[sig][mu][rho][nu] @= (-1 * g.trace(G_up[sig][mu] * einvslash[rho] * einvslash[nu]) / 8)
-        return (Riemann, Riemann_up)
+            Gsignu = g.qcd.gauge.field_strength(self.U, sig, nu)
+            Gone[nu] += Gsignu * einvslash[sig]
+        for mu, nu in it.product(range(4), repeat=2):
+            Rtwist += g.trace(Gone[mu] * einvslash[nu]) * g.trace(Gone[nu] * einvslash[mu])
+        return Rtwist
 
 
-    def build_Bmunurhosig_squared(self,):
-        riemann, riemann_up = self.make_riemann()
-        BigBsquared = g.real(self.grid)
-        BigBsquared[:] = 0
-        for mu, nu, rho, sig in it.product(range(4), repeat=4):
-            if (mu == nu):
+    def make_hard_terms(self,):
+        Gup = self.make_Gup()
+        eslash = self.make_eslash()
+        einvslash = self.make_einvslash()
+        trace_GmuGmu = g.real(self.grid)
+        trace_GmuGmu[:] = 0
+        BB = g.real(self.grid)
+        smallB = g.real(self.grid)
+        RiRi = g.real(self.grid)
+        BB[:] = 0
+        RiRi[:] = 0
+        smallB[:] = 0
+        for mu, nu in it.product(range(4), repeat=2):
+            if mu == nu:
                 continue
-            if (rho == sig):
+            Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
+            trace_GmuGmu += g.trace(Gmunu * Gup[mu][nu])
+        for mu, nu, rho in it.product(range(4), repeat=3):
+            if mu == nu:
                 continue
-            BigBsquared += (3 * riemann[mu][nu][rho][sig] * (riemann_up[mu][nu][rho][sig]
-                                                             +
-                                                             2 * riemann_up[mu][rho][sig][nu]))
-        return BigBsquared
+            elif mu == rho:
+                continue
+            Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
+            BB += g.trace((3./16.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[vu] -
+                                                            einvslash[nu] * Gup[mu][rho]))
+            RiRi += g.trace((1./32.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[vu] +
+                                                              einvslash[nu] * Gup[mu][rho]))
+        BB -= (3./8.) * trace_GmuGmu
+        RiRi -= (1./16.) * trace_GmuGmu
+        smallB @= 2*RiRi - 2*self.make_Rtwist()
+        return (smallB, BB)
+            
+
+
+
+
+    # def build_Bmunurhosig_squared(self,):
+    #     riemann, riemann_up = self.make_riemann()
+    #     BigBsquared = g.real(self.grid)
+    #     BigBsquared[:] = 0
+    #     for mu, nu, rho, sig in it.product(range(4), repeat=4):
+    #         if (mu == nu):
+    #             continue
+    #         if (rho == sig):
+    #             continue
+    #         BigBsquared += (3 * riemann[mu][nu][rho][sig] * (riemann_up[mu][nu][rho][sig]
+    #                                                          +
+    #                                                          2 * riemann_up[mu][rho][sig][nu]))
+    #     return BigBsquared
         
     
     def compute_action(self,):
@@ -348,8 +415,9 @@ class Simulation:
         eslash = self.make_eslash()
         wilson = g.real(self.grid)
         wilson[:] = 0
-        smallB = self.build_Bmunu_squared()
-        bigB = self.build_Bmunurhosig_squared()
+        smallB, bigB = self.make_hard_terms()
+        # smallB = self.build_Bmunu_squared()
+        # bigB = self.build_Bmunurhosig_squared()
         for mu, nu in it.product(range(4), repeat=2):
             if mu == nu:
                 continue
@@ -372,8 +440,8 @@ class Simulation:
                                 + (self.alpha * Rsq * g.component.inv(dete) / 256))
                   - (self.K * meas)
                   + (self.omega * wilson)
-                  + (self.eta * bigB)
                   + (self.zeta * smallB)
+                  + (self.eta * bigB)
                   )
         del R, Rsq, vol, eslash, dete, meas, wilson, Hmunu, bigB, smallB
         return action
