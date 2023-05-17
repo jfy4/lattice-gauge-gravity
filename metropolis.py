@@ -47,7 +47,7 @@ class Simulation:
         self.gamma = fields.attrs['gamma']
         self.K = fields.attrs['K']
         self.omega = fields.attrs['omega']
-        self.zeta = fields.attrs['zeta']
+        # self.zeta = fields.attrs['zeta']
         self.eta = fields.attrs['eta']
         self.swp_count = swp
         self.rng = g.random(str(self.swp_count)) # initialize random seed
@@ -57,7 +57,7 @@ class Simulation:
             self.U[mu][:] = fields['sweep'][str(swp)]['gauge'][str(mu)][:]
             for a in range(4):
                 self.e[mu][a][:] = fields['sweep'][str(swp)]['tetrad'][str(mu)][str(a)][:] + 0j
-        g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, zeta = {self.zeta}, eta = {self.eta}")
+        g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, eta = {self.eta}")
         fields.close()
         
 
@@ -70,7 +70,7 @@ class Simulation:
         gamma = str(np.round(self.gamma, 8))
         K = str(np.round(self.K, 8))
         omega = str(np.round(self.omega, 8))
-        zeta = str(np.round(self.zeta, 8))
+        # zeta = str(np.round(self.zeta, 8))
         eta = str(np.round(self.eta, 8))
         # current_path = ("./k" + kappa + "_lam" + lam
         #                 + "_a" + alpha + "_K" + K + "_o" + omega +
@@ -84,7 +84,7 @@ class Simulation:
         cfg_file = (path + "Spin4_k" + kappa + "_l" + lam
                       + "_a" + alpha + "_b" + beta + "_g" + gamma
                       + "_K" + K + "_o" + omega
-                      + "_z" + zeta + "_e" + eta + "_L" + str(self.L)
+                      + "_e" + eta + "_L" + str(self.L)
                       + "_" + str(self.swp_count) + ".hdf5")
         g.message("saving to ", cfg_file)
         R, dete = self.compute_obs()
@@ -105,7 +105,7 @@ class Simulation:
                 f.attrs['gamma'] = self.gamma
                 f.attrs['K'] = self.K
                 f.attrs['omega'] = self.omega
-                f.attrs['zeta'] = self.zeta
+                # f.attrs['zeta'] = self.zeta
                 f.attrs['eta'] = self.eta
                 # f.attrs['sweep'] = self.swp_count
                 f.attrs['L'] = self.L
@@ -254,39 +254,39 @@ class Simulation:
     #         Ricci[mu][nu] += g.trace(-1 * Gsigmu * einvslash[sig] * eslash[nu] / 8.)
     #     return Ricci
 
-    def check_R(self,):
-        Rcheck = g.real(self.grid)
-        Rcheck[:] = 0
-        Rcheck2 = g.real(self.grid)
-        Rcheck2[:] = 0
-        Rcheck3 = g.real(self.grid)
-        Rcheck3[:] = 0
-        R = g.real(self.grid)
-        R[:] = 0
-        Riemann, Riemann_up = self.make_riemann()
-        eslash = self.make_eslash()
-        ginv = self.make_ginv()
-        metric = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
-        for mu, nu in it.product(range(4), repeat=2):
-            metric[mu][nu] = g.trace(eslash[mu] * eslash[nu] / 4)
-        for mu,nu,rho,sig in it.product(range(4), repeat=4):
-            Rcheck += Riemann_up[mu][nu][rho][sig] * metric[mu][rho] * metric[nu][sig]
-            Rcheck2 += Riemann[mu][nu][rho][sig] * ginv[mu][rho] * ginv[nu][sig]
-        ricci = self.make_ricci()
-        for mu, nu in it.product(range(4), repeat=2):
-            Rcheck3 += ricci[mu][nu] * ginv[mu][nu]
-        g.message("Rcheck", Rcheck[0,0,0,0])
-        g.message("Rcheck2", Rcheck2[0,0,0,0])
-        g.message("Rcheck3", Rcheck3[0,0,0,0])
-        for idx, val in levi.items():
-            mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
-            Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
-            R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig] * val)
-        R /= 16
-        dete = det(self.e)
-        R *= g.component.inv(dete)
-        g.message("real R", R[0,0,0,0])
-        assert False
+    # def check_R(self,):
+    #     Rcheck = g.real(self.grid)
+    #     Rcheck[:] = 0
+    #     Rcheck2 = g.real(self.grid)
+    #     Rcheck2[:] = 0
+    #     Rcheck3 = g.real(self.grid)
+    #     Rcheck3[:] = 0
+    #     R = g.real(self.grid)
+    #     R[:] = 0
+    #     Riemann, Riemann_up = self.make_riemann()
+    #     eslash = self.make_eslash()
+    #     ginv = self.make_ginv()
+    #     metric = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
+    #     for mu, nu in it.product(range(4), repeat=2):
+    #         metric[mu][nu] = g.trace(eslash[mu] * eslash[nu] / 4)
+    #     for mu,nu,rho,sig in it.product(range(4), repeat=4):
+    #         Rcheck += Riemann_up[mu][nu][rho][sig] * metric[mu][rho] * metric[nu][sig]
+    #         Rcheck2 += Riemann[mu][nu][rho][sig] * ginv[mu][rho] * ginv[nu][sig]
+    #     ricci = self.make_ricci()
+    #     for mu, nu in it.product(range(4), repeat=2):
+    #         Rcheck3 += ricci[mu][nu] * ginv[mu][nu]
+    #     g.message("Rcheck", Rcheck[0,0,0,0])
+    #     g.message("Rcheck2", Rcheck2[0,0,0,0])
+    #     g.message("Rcheck3", Rcheck3[0,0,0,0])
+    #     for idx, val in levi.items():
+    #         mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
+    #         Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
+    #         R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig] * val)
+    #     R /= 16
+    #     dete = det(self.e)
+    #     R *= g.component.inv(dete)
+    #     g.message("real R", R[0,0,0,0])
+    #     assert False
             
             
     # def make_riemann(self,):
@@ -336,21 +336,21 @@ class Simulation:
             G_up[mu][nu] +=  temp1[mu][sig] * ginv[sig][nu]
         return G_up
 
-    def make_Rtwist(self,):
-        Rtwist = g.real(self.grid)
-        Rtwist[:] = 0
-        einvslash = self.make_einvslash()
-        Gone = [g.lattice(self.U[0]) for mu in range(4)]
-        for mu in range(4):
-            Gone[mu][:] = 0
-        for sig, nu in it.product(range(4), repeat=2):
-            if sig == nu:
-                continue
-            Gsignu = g.qcd.gauge.field_strength(self.U, sig, nu)
-            Gone[nu] += Gsignu * einvslash[sig]
-        for mu, nu in it.product(range(4), repeat=2):
-            Rtwist += g.trace(Gone[mu] * einvslash[nu]) * g.trace(Gone[nu] * einvslash[mu])
-        return Rtwist
+    # def make_Rtwist(self,):
+    #     Rtwist = g.real(self.grid)
+    #     Rtwist[:] = 0
+    #     einvslash = self.make_einvslash()
+    #     Gone = [g.lattice(self.U[0]) for mu in range(4)]
+    #     for mu in range(4):
+    #         Gone[mu][:] = 0
+    #     for sig, nu in it.product(range(4), repeat=2):
+    #         if sig == nu:
+    #             continue
+    #         Gsignu = g.qcd.gauge.field_strength(self.U, sig, nu)
+    #         Gone[nu] += Gsignu * einvslash[sig]
+    #     for mu, nu in it.product(range(4), repeat=2):
+    #         Rtwist += g.trace(Gone[mu] * einvslash[nu]) * g.trace(Gone[nu] * einvslash[mu])
+    #     return Rtwist
 
 
     def make_hard_terms(self,):
@@ -360,11 +360,11 @@ class Simulation:
         trace_GmuGmu = g.real(self.grid)
         trace_GmuGmu[:] = 0
         BB = g.real(self.grid)
-        smallB = g.real(self.grid)
-        RiRi = g.real(self.grid)
+        # smallB = g.real(self.grid)
+        # RiRi = g.real(self.grid)
         BB[:] = 0
-        RiRi[:] = 0
-        smallB[:] = 0
+        # RiRi[:] = 0
+        # smallB[:] = 0
         for mu, nu in it.product(range(4), repeat=2):
             if mu == nu:
                 continue
@@ -378,13 +378,13 @@ class Simulation:
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
             BB += g.trace((3./16.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] -
                                                             einvslash[nu] * Gup[mu][rho]))
-            RiRi += g.trace((1./32.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] +
-                                                              einvslash[nu] * Gup[mu][rho]))
+            # RiRi += g.trace((1./32.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] +
+            #                                                   einvslash[nu] * Gup[mu][rho]))
         BB -= (3./8.) * trace_GmuGmu
-        RiRi -= (1./16.) * trace_GmuGmu
-        smallB @= 2*RiRi - 2*self.make_Rtwist()
-        return (smallB, BB)
-            
+        # RiRi -= (1./16.) * trace_GmuGmu
+        # smallB @= 2*RiRi - 2*self.make_Rtwist()
+        # return (smallB, BB)
+        return BB
 
 
 
@@ -404,6 +404,46 @@ class Simulation:
     #     return BigBsquared
         
     
+    # def compute_action(self,):
+    #     """ Compute the gravity action site-wise."""
+    #     R = g.real(self.grid)
+    #     R[:] = 0
+    #     Rsq = g.real(self.grid)
+    #     Rsq[:] = 0
+    #     vol = g.real(self.grid)
+    #     vol[:] = 0
+    #     eslash = self.make_eslash()
+    #     wilson = g.real(self.grid)
+    #     wilson[:] = 0
+    #     bigB = self.make_hard_terms()
+    #     for mu, nu in it.product(range(4), repeat=2):
+    #         if mu == nu:
+    #             continue
+    #         Hmunu = self.symmetric_clover(self.U, mu, nu)
+    #         wilson += g.trace(g.identity(Hmunu) - Hmunu)
+    #     for idx, val in levi.items():
+    #         mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
+    #         Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
+    #         R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig] * val)
+    #         vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig] * val)
+    #     Rsq += R * R # g.component.pow(2)(R)
+    #     dete = det(self.e)
+    #     absdete = g.component.abs(dete)
+    #     wilson *= absdete
+    #     # smallB *= absdete
+    #     bigB *= absdete
+    #     meas = g.component.log(absdete)
+    #     action = (sign(dete) * ((self.lam / 96) * vol
+    #                             -(self.kappa / 32) * R
+    #                             + (self.alpha * Rsq * g.component.inv(dete) / 256))
+    #               - (self.K * meas)
+    #               + (self.omega * wilson)
+    #               + (self.eta * bigB)
+    #               )
+    #     # del R, Rsq, vol, eslash, dete, meas, wilson, Hmunu, bigB, smallB
+    #     return action
+
+
     def compute_action(self,):
         """ Compute the gravity action site-wise."""
         R = g.real(self.grid)
@@ -413,14 +453,14 @@ class Simulation:
         vol = g.real(self.grid)
         vol[:] = 0
         eslash = self.make_eslash()
-        wilson = g.real(self.grid)
-        wilson[:] = 0
-        smallB, bigB = self.make_hard_terms()
-        for mu, nu in it.product(range(4), repeat=2):
-            if mu == nu:
-                continue
-            Hmunu = self.symmetric_clover(self.U, mu, nu)
-            wilson += g.trace(g.identity(Hmunu) - Hmunu)
+        # wilson = g.real(self.grid)
+        # wilson[:] = 0
+        # bigB = self.make_hard_terms()
+        # for mu, nu in it.product(range(4), repeat=2):
+        #     if mu == nu:
+        #         continue
+        #     Hmunu = self.symmetric_clover(self.U, mu, nu)
+        #     wilson += g.trace(g.identity(Hmunu) - Hmunu)
         for idx, val in levi.items():
             mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
@@ -428,30 +468,15 @@ class Simulation:
             vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig] * val)
         Rsq += R * R # g.component.pow(2)(R)
         dete = det(self.e)
-        absdete = g.component.abs(dete)
-        wilson *= absdete
-        smallB *= absdete
-        bigB *= absdete
-        meas = g.component.log(absdete)
-        # action = (sign(dete) * ((self.lam / 96) * vol
-        #                         -(self.kappa / 32) * R
-        #                         + (self.alpha * Rsq * g.component.inv(dete) / 256))
-        #           - (self.K * meas)
-        #           + (self.omega * wilson)
-        #           + (self.zeta * smallB)
-        #           + (self.eta * bigB)
-        #           )
+        # absdete = g.component.abs(dete)
+        # wilson *= absdete
+        # # smallB *= absdete
+        # bigB *= absdete
+        # meas = g.component.log(absdete)
         action = (sign(dete) * ((self.lam / 96) * vol
                                 -(self.kappa / 32) * R
                                 + (self.alpha * Rsq * g.component.inv(dete) / 256))
-                  - (self.K * meas)
-                  + (self.omega * wilson)
-                  + (self.zeta * smallB)
                   )
-        # action = (sign(dete) * ((self.lam / 96) * vol
-        #                         -(self.kappa / 32) * R
-        #                         + (self.alpha * Rsq * g.component.inv(dete) / 256))
-        #           )
         # del R, Rsq, vol, eslash, dete, meas, wilson, Hmunu, bigB, smallB
         return action
 
@@ -621,23 +646,14 @@ class Simulation:
         """ Metropolis update for the link variables."""
         for mu in range(4):
             action = self.compute_action()
-            # action = self.compute_link_action(mu)
-            # V = g.lattice(links[mu])
             V_eye = g.identity(self.U[mu])
-            # g.message(V_eye)
             V = self.random_links(scale=self.Uinc)
-            # g.message(V)
             V = g.where(self.mask, V, V_eye)
             lo = self.U[mu]
-            # links_prime = links.copy() # copy links?
-            # g.message(links_prime)
             lp = g.eval(V * lo)
             self.U[mu] = g.eval(V * lo)
-            # links_prime[mu] = g.eval(V * links[mu])
             action_prime = self.compute_action()
-            # action_prime = self.compute_link_action(mu)
             prob = g.component.exp(action - action_prime)
-            # g.message(prob)
             rn = g.lattice(prob)
             self.rng.uniform_real(rn)
             accept = rn < prob
@@ -646,40 +662,22 @@ class Simulation:
             acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
             self.link_acpt.insert(0, acpt_amount)
             self.U[mu] @= g.where(accept, lp, lo)
-        del lp, lo, V, V_eye, action, action_prime, prob, rn, accept
-            # g.message(links[mu][0,0,0,0], lo[0,0,0,0], lp[0,0,0,0])
-            # g.message('==================')
-        
+        # del lp, lo, V, V_eye, action, action_prime, prob, rn, accept
+
         
     def update_tetrads(self,):
         """ Metropolis update for the tetrad variables."""
         for mu in range(4):
             for a in range(4):
                 action = self.compute_action()
-                # action = self.compute_tet_action(mu)
                 ii_eye = g.lattice(self.e[mu][a])
                 ii_eye[:] = 0
                 ii = self.random_shift(scale=self.einc)
                 ii = g.where(self.mask, ii, ii_eye)
-                # g.message(ii[:])
-                # assert False
                 eo = self.e[mu][a]
-                # dete = det(self.e)
-                # g.message(eo[0,0,0,0])
                 ep = g.eval(ii + eo)
-                # g.message(ep[0,0,0,0])
-                # g.message(ep, e[mu][a])
-                # assert False
-                # e_prime = 1
                 self.e[mu][a] = g.eval(ii + eo)
-                # detep = det(self.e)
-                # g.message(eo[0,0,0,0], e[mu][a][0,0,0,0])
-                # g.message(e[mu][a][0,0,0,0], e_prime[mu][a][0,0,0,0])
                 action_prime = self.compute_action()
-                # action_prime = self.compute_tet_action(mu)
-                # g.message(np.sum(g.eval(action_prime)[:]), np.sum(g.eval(action)[:]))
-                # meas = g.component.pow(self.K)(g.component.abs(detep) * g.component.inv(g.component.abs(dete)))
-                # prob = g.eval(g.component.exp(action - action_prime) * meas)
                 prob = g.eval(g.component.exp(action - action_prime))
                 rn = g.lattice(prob)
                 self.rng.uniform_real(rn)
@@ -689,10 +687,7 @@ class Simulation:
                 acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
                 self.tet_acpt.insert(0, acpt_amount)
                 self.e[mu][a] @= g.where(accept, ep, eo)
-        del action, ii_eye, ii, eo, ep, action_prime, prob, rn, accept
-                # g.message(e[mu][a][0,0,0,0], eo[0,0,0,0], ep[0,0,0,0])
-                # g.message(np.sum(g.eval(compute_tet_action(links, e, mu))[:]))
-                # g.message('==================')
+        # del action, ii_eye, ii, eo, ep, action_prime, prob, rn, accept
 
 
             
@@ -702,7 +697,7 @@ class Simulation:
         self.update_links()
         self.update_tetrads()
 
-    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., zeta=1., eta=1., measurement_rate=20, uacpt_rate=0.6, eacpt_rate=0.6):
+    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., measurement_rate=20, uacpt_rate=0.6, eacpt_rate=0.6):
         """ Runs the Metropolis algorithm."""
         self.Uinc = 0.4
         self.einc = 0.4
@@ -723,16 +718,16 @@ class Simulation:
             self.beta = np.float64(beta)
             self.gamma = np.float64(gamma)
             self.omega = np.float64(omega)
-            self.zeta = np.float64(zeta)
+            # self.zeta = np.float64(zeta)
             self.eta = np.float64(eta)
-            g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, zeta = {self.zeta}, eta = {self.eta}")
-            # self.save_config(path)
+            g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, eta = {self.eta}")
+            self.save_config(path)
         # self.check_R()
         while True:
             self.sweep()
             self.swp_count += 1
             if (self.swp_count % self.meas_rate == 0):
-                # self.save_config(path)
+                self.save_config(path)
                 pass
 
     def sweep(self,):
