@@ -376,9 +376,9 @@ class Simulation:
             elif mu == rho:
                 continue
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
-            BB += g.trace((3./16.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[vu] -
+            BB += g.trace((3./16.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] -
                                                             einvslash[nu] * Gup[mu][rho]))
-            RiRi += g.trace((1./32.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[vu] +
+            RiRi += g.trace((1./32.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] +
                                                               einvslash[nu] * Gup[mu][rho]))
         BB -= (3./8.) * trace_GmuGmu
         RiRi -= (1./16.) * trace_GmuGmu
@@ -416,8 +416,6 @@ class Simulation:
         wilson = g.real(self.grid)
         wilson[:] = 0
         smallB, bigB = self.make_hard_terms()
-        # smallB = self.build_Bmunu_squared()
-        # bigB = self.build_Bmunurhosig_squared()
         for mu, nu in it.product(range(4), repeat=2):
             if mu == nu:
                 continue
@@ -435,15 +433,26 @@ class Simulation:
         smallB *= absdete
         bigB *= absdete
         meas = g.component.log(absdete)
+        # action = (sign(dete) * ((self.lam / 96) * vol
+        #                         -(self.kappa / 32) * R
+        #                         + (self.alpha * Rsq * g.component.inv(dete) / 256))
+        #           - (self.K * meas)
+        #           + (self.omega * wilson)
+        #           + (self.zeta * smallB)
+        #           + (self.eta * bigB)
+        #           )
         action = (sign(dete) * ((self.lam / 96) * vol
                                 -(self.kappa / 32) * R
                                 + (self.alpha * Rsq * g.component.inv(dete) / 256))
                   - (self.K * meas)
                   + (self.omega * wilson)
                   + (self.zeta * smallB)
-                  + (self.eta * bigB)
                   )
-        del R, Rsq, vol, eslash, dete, meas, wilson, Hmunu, bigB, smallB
+        # action = (sign(dete) * ((self.lam / 96) * vol
+        #                         -(self.kappa / 32) * R
+        #                         + (self.alpha * Rsq * g.component.inv(dete) / 256))
+        #           )
+        # del R, Rsq, vol, eslash, dete, meas, wilson, Hmunu, bigB, smallB
         return action
 
     def compute_obs(self,):
@@ -723,7 +732,7 @@ class Simulation:
             self.sweep()
             self.swp_count += 1
             if (self.swp_count % self.meas_rate == 0):
-                self.save_config(path)
+                # self.save_config(path)
                 pass
 
     def sweep(self,):
