@@ -328,11 +328,9 @@ class Simulation:
         for mu, nu in it.product(range(4), repeat=2):
             G_up[mu][nu][:] = 0
             temp1[mu][nu][:] = 0
-        for mu, nu, sig in it.product(range(4), repeat=3):
-            if sig == nu:
-                continue
+        for mu, nu, sig in munusig1:
             temp1[mu][nu] += ginv[mu][sig] * g.qcd.gauge.field_strength(self.U, sig, nu)
-        for mu, nu, sig in it.product(range(4), repeat=3):
+        for mu, nu, sig in munusig2:
             G_up[mu][nu] +=  temp1[mu][sig] * ginv[sig][nu]
         return G_up
 
@@ -370,11 +368,7 @@ class Simulation:
                 continue
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
             trace_GmuGmu += g.trace(Gmunu * Gup[mu][nu])
-        for mu, nu, rho in it.product(range(4), repeat=3):
-            if mu == nu:
-                continue
-            elif mu == rho:
-                continue
+        for mu, nu, rho in munurho_loop:    
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
             BB += g.trace((3./16.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] -
                                                             einvslash[nu] * Gup[mu][rho]))
@@ -404,46 +398,6 @@ class Simulation:
     #     return BigBsquared
         
     
-    # def compute_action(self,):
-    #     """ Compute the gravity action site-wise."""
-    #     R = g.real(self.grid)
-    #     R[:] = 0
-    #     Rsq = g.real(self.grid)
-    #     Rsq[:] = 0
-    #     vol = g.real(self.grid)
-    #     vol[:] = 0
-    #     eslash = self.make_eslash()
-    #     wilson = g.real(self.grid)
-    #     wilson[:] = 0
-    #     bigB = self.make_hard_terms()
-    #     for mu, nu in it.product(range(4), repeat=2):
-    #         if mu == nu:
-    #             continue
-    #         Hmunu = self.symmetric_clover(self.U, mu, nu)
-    #         wilson += g.trace(g.identity(Hmunu) - Hmunu)
-    #     for idx, val in levi.items():
-    #         mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
-    #         Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
-    #         R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig] * val)
-    #         vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig] * val)
-    #     Rsq += R * R # g.component.pow(2)(R)
-    #     dete = det(self.e)
-    #     absdete = g.component.abs(dete)
-    #     wilson *= absdete
-    #     # smallB *= absdete
-    #     bigB *= absdete
-    #     meas = g.component.log(absdete)
-    #     action = (sign(dete) * ((self.lam / 96) * vol
-    #                             -(self.kappa / 32) * R
-    #                             + (self.alpha * Rsq * g.component.inv(dete) / 256))
-    #               - (self.K * meas)
-    #               + (self.omega * wilson)
-    #               + (self.eta * bigB)
-    #               )
-    #     # del R, Rsq, vol, eslash, dete, meas, wilson, Hmunu, bigB, smallB
-    #     return action
-
-
     def compute_action(self,):
         """ Compute the gravity action site-wise."""
         R = g.real(self.grid)
@@ -453,14 +407,14 @@ class Simulation:
         vol = g.real(self.grid)
         vol[:] = 0
         eslash = self.make_eslash()
-        # wilson = g.real(self.grid)
-        # wilson[:] = 0
-        # bigB = self.make_hard_terms()
-        # for mu, nu in it.product(range(4), repeat=2):
-        #     if mu == nu:
-        #         continue
-        #     Hmunu = self.symmetric_clover(self.U, mu, nu)
-        #     wilson += g.trace(g.identity(Hmunu) - Hmunu)
+        wilson = g.real(self.grid)
+        wilson[:] = 0
+        bigB = self.make_hard_terms()
+        for mu, nu in it.product(range(4), repeat=2):
+            if mu == nu:
+                continue
+            Hmunu = self.symmetric_clover(self.U, mu, nu)
+            wilson += g.trace(g.identity(Hmunu) - Hmunu)
         for idx, val in levi.items():
             mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
@@ -468,17 +422,57 @@ class Simulation:
             vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig] * val)
         Rsq += R * R # g.component.pow(2)(R)
         dete = det(self.e)
-        # absdete = g.component.abs(dete)
-        # wilson *= absdete
-        # # smallB *= absdete
-        # bigB *= absdete
-        # meas = g.component.log(absdete)
+        absdete = g.component.abs(dete)
+        wilson *= absdete
+        # smallB *= absdete
+        bigB *= absdete
+        meas = g.component.log(absdete)
         action = (sign(dete) * ((self.lam / 96) * vol
                                 -(self.kappa / 32) * R
                                 + (self.alpha * Rsq * g.component.inv(dete) / 256))
+                  - (self.K * meas)
+                  + (self.omega * wilson)
+                  + (self.eta * bigB)
                   )
         # del R, Rsq, vol, eslash, dete, meas, wilson, Hmunu, bigB, smallB
         return action
+
+
+    # def compute_action(self,):
+    #     """ Compute the gravity action site-wise."""
+    #     R = g.real(self.grid)
+    #     R[:] = 0
+    #     Rsq = g.real(self.grid)
+    #     Rsq[:] = 0
+    #     vol = g.real(self.grid)
+    #     vol[:] = 0
+    #     eslash = self.make_eslash()
+    #     # wilson = g.real(self.grid)
+    #     # wilson[:] = 0
+    #     # bigB = self.make_hard_terms()
+    #     # for mu, nu in it.product(range(4), repeat=2):
+    #     #     if mu == nu:
+    #     #         continue
+    #     #     Hmunu = self.symmetric_clover(self.U, mu, nu)
+    #     #     wilson += g.trace(g.identity(Hmunu) - Hmunu)
+    #     for idx, val in levi.items():
+    #         mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
+    #         Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
+    #         R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig] * val)
+    #         vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig] * val)
+    #     Rsq += R * R # g.component.pow(2)(R)
+    #     dete = det(self.e)
+    #     # absdete = g.component.abs(dete)
+    #     # wilson *= absdete
+    #     # # smallB *= absdete
+    #     # bigB *= absdete
+    #     # meas = g.component.log(absdete)
+    #     action = (sign(dete) * ((self.lam / 96) * vol
+    #                             -(self.kappa / 32) * R
+    #                             + (self.alpha * Rsq * g.component.inv(dete) / 256))
+    #               )
+    #     # del R, Rsq, vol, eslash, dete, meas, wilson, Hmunu, bigB, smallB
+    #     return action
 
     def compute_obs(self,):
         """ Compute the R and dete."""
@@ -497,126 +491,126 @@ class Simulation:
         
     
     
-    def staple(self, mu):
-        Emu = g.mspin(self.grid)
-        Emu[:] = 0
-        Emutilde = g.mspin(self.grid)
-        Emutilde[:] = 0
-        eslash = self.make_eslash()
-        sign_x_plus_mu = g.cshift(sign(det(self.e)), mu, 1)
-        # g.message(eslash[mu])
-        # assert False
-        for (nu,rho,sig), val in levi3[mu].items():
-            # g.message(nu,rho,sig, val)
-            sign_x_minus_nu = g.cshift(sign(det(self.e)), nu, -1)
-            sign_x_plus_nu = g.cshift(sign(det(self.e)), nu, 1)
+    # def staple(self, mu):
+    #     Emu = g.mspin(self.grid)
+    #     Emu[:] = 0
+    #     Emutilde = g.mspin(self.grid)
+    #     Emutilde[:] = 0
+    #     eslash = self.make_eslash()
+    #     sign_x_plus_mu = g.cshift(sign(det(self.e)), mu, 1)
+    #     # g.message(eslash[mu])
+    #     # assert False
+    #     for (nu,rho,sig), val in levi3[mu].items():
+    #         # g.message(nu,rho,sig, val)
+    #         sign_x_minus_nu = g.cshift(sign(det(self.e)), nu, -1)
+    #         sign_x_plus_nu = g.cshift(sign(det(self.e)), nu, 1)
             
-            e_rho_x_plus_mu = g.cshift(eslash[rho], mu, 1)
-            e_sig_x_plus_mu = g.cshift(eslash[sig], mu, 1)
-            e_rho_x_plus_nu = g.cshift(eslash[rho], nu, 1)
-            e_sig_x_plus_nu = g.cshift(eslash[sig], nu, 1)
-            e_rho_x_minus_nu = g.cshift(eslash[rho], nu, -1)
-            e_sig_x_minus_nu = g.cshift(eslash[sig], nu, -1)
+    #         e_rho_x_plus_mu = g.cshift(eslash[rho], mu, 1)
+    #         e_sig_x_plus_mu = g.cshift(eslash[sig], mu, 1)
+    #         e_rho_x_plus_nu = g.cshift(eslash[rho], nu, 1)
+    #         e_sig_x_plus_nu = g.cshift(eslash[sig], nu, 1)
+    #         e_rho_x_minus_nu = g.cshift(eslash[rho], nu, -1)
+    #         e_sig_x_minus_nu = g.cshift(eslash[sig], nu, -1)
             
-            U_nu_x_plus_mu = g.cshift(self.U[nu], mu, 1)
-            U_nu_x_minus_nu = g.cshift(self.U[nu], nu, -1)
-            U_mu_x_plus_nu = g.cshift(self.U[mu], nu, 1)
+    #         U_nu_x_plus_mu = g.cshift(self.U[nu], mu, 1)
+    #         U_nu_x_minus_nu = g.cshift(self.U[nu], nu, -1)
+    #         U_mu_x_plus_nu = g.cshift(self.U[mu], nu, 1)
             
-            one = g.eval(U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
-                         g.adj(self.U[nu]) * eslash[rho] * eslash[sig] *
-                         g.gamma[5]) * sign(det(self.e))
-            two = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
-                         g.adj(g.cshift(self.U[mu], nu, -1)) * U_nu_x_minus_nu *
-                         eslash[rho] * eslash[sig] * g.gamma[5]) * sign(det(self.e))
-            three = g.eval(e_rho_x_plus_mu * e_sig_x_plus_mu *
-                           g.gamma[5] * U_nu_x_plus_mu *
-                           g.adj(U_mu_x_plus_nu) * g.adj(self.U[nu])) * sign_x_plus_mu
-            four = g.eval(e_rho_x_plus_mu * e_sig_x_plus_mu *
-                          g.gamma[5] * g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
-                          g.adj(g.cshift(self.U[mu], nu, -1)) *
-                          U_nu_x_minus_nu) * sign_x_plus_mu
-            five = g.eval(U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
-                          e_rho_x_plus_nu * e_sig_x_plus_nu *
-                          g.gamma[5] * g.adj(self.U[nu])) * sign_x_plus_nu
-            six = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
-                         g.adj(g.cshift(self.U[mu], nu, -1)) *
-                         e_rho_x_minus_nu * e_sig_x_minus_nu *
-                         g.gamma[5] * U_nu_x_minus_nu) * sign_x_minus_nu
-            seven = g.eval(U_nu_x_plus_mu * g.cshift(e_rho_x_plus_mu, nu, 1) *
-                           g.cshift(e_sig_x_plus_mu, nu, 1) * g.gamma[5] *
-                           g.adj(U_mu_x_plus_nu) *
-                           g.adj(self.U[nu])) * g.cshift(sign_x_plus_mu, nu, 1)
-            eight = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
-                           g.cshift(e_rho_x_plus_mu, nu, -1) *
-                           g.cshift(e_sig_x_plus_mu, nu, -1) * g.gamma[5] *
-                           g.adj(g.cshift(self.U[mu], nu, -1)) *
-                           U_nu_x_minus_nu) * g.cshift(sign_x_plus_mu, nu, -1)
-            Emu += 0.125 * val * (one - two + three - four + five - six + seven - eight)
-            # Emutilde part
-            # one = g.eval(eslash[rho] * eslash[sig] * g.gamma[5] *
-            #        links[nu] * U_mu_x_plus_nu * g.adj(U_nu_x_plus_mu)) * sign(det(e))
-            # two = g.eval(eslash[rho] * eslash[sig] * g.gamma[5] *
-            #        g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
-            #        g.cshift(U_nu_x_plus_mu, nu, -1)) * sign(det(e))
-            # three = g.eval(links[nu] * U_mu_x_plus_nu * g.adj(U_nu_x_plus_mu) *
-            #          e_rho_x_plus_mu * e_sig_x_plus_mu
-            #          * g.gamma[5]) * sign_x_plus_mu
-            # four = g.eval(g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
-            #         g.cshift(U_nu_x_plus_mu, nu, -1) * e_rho_x_plus_mu *
-            #         e_sig_x_plus_mu * g.gamma[5]) * sign_x_plus_mu
-            # five = g.eval(links[nu] * e_rho_x_plus_nu * e_sig_x_plus_nu
-            #         * g.gamma[5] * U_mu_x_plus_nu *
-            #         g.adj(U_nu_x_plus_mu)) * sign_x_plus_nu
-            # six = g.eval(g.adj(U_nu_x_minus_nu) * e_rho_x_minus_nu *
-            #        e_sig_x_minus_nu * g.gamma[5] * g.cshift(links[mu], nu, -1) *
-            #        g.cshift(U_nu_x_plus_mu, nu, -1)) * sign_x_minus_nu
-            # seven = g.eval(links[nu] * U_mu_x_plus_nu * g.cshift(e_rho_x_plus_nu, mu, 1) *
-            #          g.cshift(e_sig_x_plus_nu, mu, 1) * g.gamma[5] *
-            #          g.adj(U_nu_x_plus_mu)) * g.cshift(sign_x_plus_mu, nu, 1)
-            # eight = g.eval(g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
-            #          g.cshift(e_rho_x_plus_mu, nu, -1) *
-            #          g.cshift(e_sig_x_plus_mu, nu, -1) * g.gamma[5] *
-            #          g.cshift(U_nu_x_plus_mu, nu, -1)) * g.cshift(sign_x_plus_mu, nu, -1)
-            # Emutilde += 0.125 * val * (- one + two - three + four - five + six - seven + eight)
-        # return (Emu, Emutilde)
-        return Emu
+    #         one = g.eval(U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
+    #                      g.adj(self.U[nu]) * eslash[rho] * eslash[sig] *
+    #                      g.gamma[5]) * sign(det(self.e))
+    #         two = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
+    #                      g.adj(g.cshift(self.U[mu], nu, -1)) * U_nu_x_minus_nu *
+    #                      eslash[rho] * eslash[sig] * g.gamma[5]) * sign(det(self.e))
+    #         three = g.eval(e_rho_x_plus_mu * e_sig_x_plus_mu *
+    #                        g.gamma[5] * U_nu_x_plus_mu *
+    #                        g.adj(U_mu_x_plus_nu) * g.adj(self.U[nu])) * sign_x_plus_mu
+    #         four = g.eval(e_rho_x_plus_mu * e_sig_x_plus_mu *
+    #                       g.gamma[5] * g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
+    #                       g.adj(g.cshift(self.U[mu], nu, -1)) *
+    #                       U_nu_x_minus_nu) * sign_x_plus_mu
+    #         five = g.eval(U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
+    #                       e_rho_x_plus_nu * e_sig_x_plus_nu *
+    #                       g.gamma[5] * g.adj(self.U[nu])) * sign_x_plus_nu
+    #         six = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
+    #                      g.adj(g.cshift(self.U[mu], nu, -1)) *
+    #                      e_rho_x_minus_nu * e_sig_x_minus_nu *
+    #                      g.gamma[5] * U_nu_x_minus_nu) * sign_x_minus_nu
+    #         seven = g.eval(U_nu_x_plus_mu * g.cshift(e_rho_x_plus_mu, nu, 1) *
+    #                        g.cshift(e_sig_x_plus_mu, nu, 1) * g.gamma[5] *
+    #                        g.adj(U_mu_x_plus_nu) *
+    #                        g.adj(self.U[nu])) * g.cshift(sign_x_plus_mu, nu, 1)
+    #         eight = g.eval(g.adj(g.cshift(U_nu_x_plus_mu, nu, -1)) *
+    #                        g.cshift(e_rho_x_plus_mu, nu, -1) *
+    #                        g.cshift(e_sig_x_plus_mu, nu, -1) * g.gamma[5] *
+    #                        g.adj(g.cshift(self.U[mu], nu, -1)) *
+    #                        U_nu_x_minus_nu) * g.cshift(sign_x_plus_mu, nu, -1)
+    #         Emu += 0.125 * val * (one - two + three - four + five - six + seven - eight)
+    #         # Emutilde part
+    #         # one = g.eval(eslash[rho] * eslash[sig] * g.gamma[5] *
+    #         #        links[nu] * U_mu_x_plus_nu * g.adj(U_nu_x_plus_mu)) * sign(det(e))
+    #         # two = g.eval(eslash[rho] * eslash[sig] * g.gamma[5] *
+    #         #        g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
+    #         #        g.cshift(U_nu_x_plus_mu, nu, -1)) * sign(det(e))
+    #         # three = g.eval(links[nu] * U_mu_x_plus_nu * g.adj(U_nu_x_plus_mu) *
+    #         #          e_rho_x_plus_mu * e_sig_x_plus_mu
+    #         #          * g.gamma[5]) * sign_x_plus_mu
+    #         # four = g.eval(g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
+    #         #         g.cshift(U_nu_x_plus_mu, nu, -1) * e_rho_x_plus_mu *
+    #         #         e_sig_x_plus_mu * g.gamma[5]) * sign_x_plus_mu
+    #         # five = g.eval(links[nu] * e_rho_x_plus_nu * e_sig_x_plus_nu
+    #         #         * g.gamma[5] * U_mu_x_plus_nu *
+    #         #         g.adj(U_nu_x_plus_mu)) * sign_x_plus_nu
+    #         # six = g.eval(g.adj(U_nu_x_minus_nu) * e_rho_x_minus_nu *
+    #         #        e_sig_x_minus_nu * g.gamma[5] * g.cshift(links[mu], nu, -1) *
+    #         #        g.cshift(U_nu_x_plus_mu, nu, -1)) * sign_x_minus_nu
+    #         # seven = g.eval(links[nu] * U_mu_x_plus_nu * g.cshift(e_rho_x_plus_nu, mu, 1) *
+    #         #          g.cshift(e_sig_x_plus_nu, mu, 1) * g.gamma[5] *
+    #         #          g.adj(U_nu_x_plus_mu)) * g.cshift(sign_x_plus_mu, nu, 1)
+    #         # eight = g.eval(g.adj(U_nu_x_minus_nu) * g.cshift(links[mu], nu, -1) *
+    #         #          g.cshift(e_rho_x_plus_mu, nu, -1) *
+    #         #          g.cshift(e_sig_x_plus_mu, nu, -1) * g.gamma[5] *
+    #         #          g.cshift(U_nu_x_plus_mu, nu, -1)) * g.cshift(sign_x_plus_mu, nu, -1)
+    #         # Emutilde += 0.125 * val * (- one + two - three + four - five + six - seven + eight)
+    #     # return (Emu, Emutilde)
+    #     return Emu
 
-    def eenv(self, eslash, mu):
-        Vmu = g.mspin(self.grid)
-        Vmu[:] = 0
-        Wmu = g.mspin(self.grid)
-        Wmu[:] = 0
-        for (nu, rho, sig), val in levi3[mu].items():
-            Vmu += eslash[nu] * eslash[rho] * eslash[sig] * g.gamma[5] * val
-            Wmu += (eslash[nu] * g.gamma[5] *
-                    g.qcd.gauge.field_strength(self.U, rho, sig) * val)
-        return (self.lam / 96)*Vmu - (self.kappa / 32)*Wmu
+    # def eenv(self, eslash, mu):
+    #     Vmu = g.mspin(self.grid)
+    #     Vmu[:] = 0
+    #     Wmu = g.mspin(self.grid)
+    #     Wmu[:] = 0
+    #     for (nu, rho, sig), val in levi3[mu].items():
+    #         Vmu += eslash[nu] * eslash[rho] * eslash[sig] * g.gamma[5] * val
+    #         Wmu += (eslash[nu] * g.gamma[5] *
+    #                 g.qcd.gauge.field_strength(self.U, rho, sig) * val)
+    #     return (self.lam / 96)*Vmu - (self.kappa / 32)*Wmu
         
             
-    def compute_link_action(self, mu):
-        R = g.real(self.grid)
-        R[:] = 0
-        # E, Etil = staple(links, e, mu)
-        E = self.staple(mu)
-        R = g.trace(self.U[mu] * E)
-        return (-self.kappa / 32) * R
+    # def compute_link_action(self, mu):
+    #     R = g.real(self.grid)
+    #     R[:] = 0
+    #     # E, Etil = staple(links, e, mu)
+    #     E = self.staple(mu)
+    #     R = g.trace(self.U[mu] * E)
+    #     return (-self.kappa / 32) * R
 
 
-    def compute_tet_action(self, mu):
-        V = g.real(self.grid)
-        V[:] = 0
-        eslash = self.make_eslash()
-        F = self.eenv(eslash, mu)
-        V = sign(det(self.e)) * g.trace(eslash[mu] * F)
-        return V
+    # def compute_tet_action(self, mu):
+    #     V = g.real(self.grid)
+    #     V[:] = 0
+    #     eslash = self.make_eslash()
+    #     F = self.eenv(eslash, mu)
+    #     V = sign(det(self.e)) * g.trace(eslash[mu] * F)
+    #     return V
 
-    def compute_total_action(self,):
-        want = g.real(self.grid)
-        want[:] = 0
-        for mu in range(4):
-            B = self.compute_tet_action(mu)
-            want += B
-        return want
+    # def compute_total_action(self,):
+    #     want = g.real(self.grid)
+    #     want[:] = 0
+    #     for mu in range(4):
+    #         B = self.compute_tet_action(mu)
+    #         want += B
+    #     return want
 
     def make_Us(self,):
         """ Make random link variables in SU(2)xSU(2)."""
@@ -697,7 +691,7 @@ class Simulation:
         self.update_links()
         self.update_tetrads()
 
-    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., measurement_rate=20, uacpt_rate=0.6, eacpt_rate=0.6):
+    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., measurement_rate=1, uacpt_rate=0.6, eacpt_rate=0.6):
         """ Runs the Metropolis algorithm."""
         self.Uinc = 0.4
         self.einc = 0.4
@@ -721,13 +715,13 @@ class Simulation:
             # self.zeta = np.float64(zeta)
             self.eta = np.float64(eta)
             g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, eta = {self.eta}")
-            self.save_config(path)
+            # self.save_config(path)
         # self.check_R()
         while True:
             self.sweep()
             self.swp_count += 1
             if (self.swp_count % self.meas_rate == 0):
-                self.save_config(path)
+                # self.save_config(path)
                 pass
 
     def sweep(self,):
@@ -824,5 +818,38 @@ def three_levi():
 
 levi = make_levi()
 levi3 = three_levi()
+
+
+def munurho_list():
+    munurho_list = list()
+    for mu, nu, rho in it.product(range(4), repeat=3):
+        if mu == nu:
+            continue
+        elif mu == rho:
+            continue
+        munurho_list.append((mu, nu, rho))
+    return munurho_list
+
+munurho_loop = munurho_list()
+
+def munusig1():
+    munusig1 = list()
+    for mu, nu, sig in it.product(range(4), repeat=3):
+        if sig == nu:
+            continue
+        munusig1.append((mu,nu,sig))
+    return munusig1
+
+def munusig2():
+    munusig2 = list()
+    for mu, nu, sig in it.product(range(4), repeat=3):
+        if mu == nu:
+            continue
+        munusig2.append((mu,nu,sig))
+    return munusig2
+
+munusig1 = munusig1()
+munusig2 = munusig2()
+        
 
 
