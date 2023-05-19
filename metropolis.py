@@ -23,13 +23,13 @@ class Simulation:
         self.tet_acpt = [0]*100
         self.load = False
         g.message(self.grid)
-        # self.rng = g.random("seed string") # initialize random seed
-        self.rng = g.random("0") # initialize random seed
+        self.rng = g.random("seed string") # initialize random seed
+        # self.rng = g.random("0") # initialize random seed
+        self.make_Us()
 
         # make the tetrads
         self.e = [[self.rng.normal(g.real(self.grid)) for a in range(4)] for mu in range(4)]
         # make the Us
-        self.make_Us()
         # make the checkerboard mask
         self.make_initial_mask()
 
@@ -358,11 +358,7 @@ class Simulation:
         trace_GmuGmu = g.real(self.grid)
         trace_GmuGmu[:] = 0
         BB = g.real(self.grid)
-        # smallB = g.real(self.grid)
-        # RiRi = g.real(self.grid)
         BB[:] = 0
-        # RiRi[:] = 0
-        # smallB[:] = 0
         for mu, nu in it.product(range(4), repeat=2):
             if mu == nu:
                 continue
@@ -372,12 +368,7 @@ class Simulation:
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
             BB += g.trace((3./16.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] -
                                                             einvslash[nu] * Gup[mu][rho]))
-            # RiRi += g.trace((1./32.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] +
-            #                                                   einvslash[nu] * Gup[mu][rho]))
         BB -= (3./8.) * trace_GmuGmu
-        # RiRi -= (1./16.) * trace_GmuGmu
-        # smallB @= 2*RiRi - 2*self.make_Rtwist()
-        # return (smallB, BB)
         return BB
 
 
