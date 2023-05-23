@@ -1,4 +1,4 @@
-#!/nashome/j/junmuthy/miniconda3/bin/python
+#!/work1/lqcd_gpt/miniconda3/bin/python
 
 import os
 # os.environ["MKL_NUM_THREADS"] = "4"
@@ -23,13 +23,13 @@ class Simulation:
         self.tet_acpt = [0]*100
         self.load = False
         g.message(self.grid)
-        self.rng = g.random("seed string") # initialize random seed
-        # self.rng = g.random("0") # initialize random seed
+        # self.rng = g.random("seed string") # initialize random seed
+        self.rng = g.random("0") # initialize random seed
+        # make the Us
         self.make_Us()
 
         # make the tetrads
         self.e = [[self.rng.normal(g.real(self.grid)) for a in range(4)] for mu in range(4)]
-        # make the Us
         # make the checkerboard mask
         self.make_initial_mask()
 
@@ -706,13 +706,13 @@ class Simulation:
             # self.zeta = np.float64(zeta)
             self.eta = np.float64(eta)
             g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, eta = {self.eta}")
-            # self.save_config(path)
+            self.save_config(path)
         # self.check_R()
         while True:
             self.sweep()
             self.swp_count += 1
             if (self.swp_count % self.meas_rate == 0):
-                # self.save_config(path)
+                self.save_config(path)
                 pass
 
     def sweep(self,):

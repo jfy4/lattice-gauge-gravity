@@ -30,7 +30,7 @@ if __name__ == "__main__":
     # initialize lattice
     lattice = Simulation(L)
 
-    lattice.run(path="/wclustre/lqcd_gpt/gauge_configs/", kappa=kappa, lam=lam, alpha=alpha, beta=beta, gamma=gamma, omega=omega, eta=eta, K=K, measurement_rate=1)
+    lattice.run(path="/wclustre/lqcd_gpt/new_gauge_configs/", kappa=kappa, lam=lam, alpha=alpha, beta=beta, gamma=gamma, omega=omega, eta=eta, K=K, measurement_rate=1)
     
             
             
