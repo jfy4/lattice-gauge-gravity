@@ -13,7 +13,7 @@ parser.add_argument('--alpha', type=float, default=1.0)
 parser.add_argument('--beta', type=float, default=0.0)
 parser.add_argument('--gamma', type=float, default=0.0)
 parser.add_argument('--omega', type=float, default=1.0)
-parser.add_argument('--zeta', type=float, default=1.0)
+# parser.add_argument('--zeta', type=float, default=1.0)
 parser.add_argument('--eta', type=float, default=1.0)
 parser.add_argument('--K', type=float, default=2.0)
 parser.add_argument('--mpi', default="1.1.1.1", type=str, help='mpi ranks passed to gpt')
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     # initialize lattice
     lattice = Simulation(L)
 
-    lattice.run(path="/wclustre/lqcd_gpt/gauge_configs/", kappa=kappa, lam=lam, alpha=alpha, beta=beta, gamma=gamma, omega=omega, zeta=zeta, eta=eta, K=K, measurement_rate=1)
+    lattice.run(path="/wclustre/lqcd_gpt/new_gauge_configs/", kappa=kappa, lam=lam, alpha=alpha, beta=beta, gamma=gamma, omega=omega, eta=eta, K=K, measurement_rate=1)
     
             
             
