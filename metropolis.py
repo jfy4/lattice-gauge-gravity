@@ -37,9 +37,9 @@ class Simulation:
     def load_config(self, fields_path, swp_number):
         """Load saved gauge and tetrad fields."""
         self.load = True
+        #files = os.listdir(fields_path)
         fields = h5py.File(fields_path, 'r')
         swp = swp_number
-
         self.kappa = fields.attrs['kappa']
         self.lam = fields.attrs['lambda']
         self.alpha = fields.attrs['alpha']
@@ -51,8 +51,7 @@ class Simulation:
         self.eta = fields.attrs['eta']
         self.swp_count = swp
         self.rng = g.random(str(self.swp_count)) # initialize random seed
-        assert self.L == fields.attrs['L']
-        
+        assert self.L == fields.attrs['L']        
         for mu in range(4):
             self.U[mu][:] = fields['sweep'][str(swp)]['gauge'][str(mu)][:]
             for a in range(4):
@@ -60,6 +59,72 @@ class Simulation:
         g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, eta = {self.eta}")
         fields.close()
         
+
+    # def save_config(self, path):
+    #     """ Save field configurations."""
+    #     kappa = str(np.round(self.kappa, 8))
+    #     lam = str(np.round(self.lam, 8))
+    #     alpha = str(np.round(self.alpha, 8))
+    #     beta = str(np.round(self.beta, 8))
+    #     gamma = str(np.round(self.gamma, 8))
+    #     K = str(np.round(self.K, 8))
+    #     omega = str(np.round(self.omega, 8))
+    #     # zeta = str(np.round(self.zeta, 8))
+    #     eta = str(np.round(self.eta, 8))
+    #     # current_path = ("./k" + kappa + "_lam" + lam
+    #     #                 + "_a" + alpha + "_K" + K + "_o" + omega +
+    #     #                 "_z" + zeta + "_e" + eta +
+    #     #                 "_L" + str(self.L) + "/")
+    #     # try:
+    #     #     os.mkdir(current_path)
+    #     # except FileExistsError:
+    #     #     pass
+    #     #cfg_file = path + "fields_k" + kappa + "_lam" + lam
+    #     cfg_file = (path + "Spin4_k" + kappa + "_l" + lam
+    #                   + "_a" + alpha + "_b" + beta + "_g" + gamma
+    #                   + "_K" + K + "_o" + omega
+    #                   + "_e" + eta + "_L" + str(self.L)
+    #                   + "_" + str(self.swp_count) + ".hdf5")
+    #     g.message("saving to ", cfg_file)
+    #     R, dete = self.compute_obs()
+    #     g.message("measured observables")
+    #     R_np = np.real(R[:])
+    #     dete_np = np.real(dete[:])
+    #     grid = self.U[0].grid
+    #     g.message("converted to numpy")
+    #     if grid.processor == 0:
+    #         f = h5py.File(cfg_file, "w")
+    #         g.message("opened database")
+    #     if self.swp_count == 0:
+    #         if grid.processor == 0:
+    #             f.attrs['kappa'] = self.kappa
+    #             f.attrs['lambda'] = self.lam
+    #             f.attrs['alpha'] = self.alpha
+    #             f.attrs['beta'] = self.beta
+    #             f.attrs['gamma'] = self.gamma
+    #             f.attrs['K'] = self.K
+    #             f.attrs['omega'] = self.omega
+    #             # f.attrs['zeta'] = self.zeta
+    #             f.attrs['eta'] = self.eta
+    #             # f.attrs['sweep'] = self.swp_count
+    #             f.attrs['L'] = self.L
+    #             g.message("saved metadata")
+    #     if grid.processor == 0:
+    #         f.create_dataset("sweep/" + str(self.swp_count) + "/obs/R", data=R_np)
+    #         f.create_dataset("sweep/" + str(self.swp_count) + "/obs/dete", data=dete_np)
+    #     g.message("saved R and e")
+    #     for mu in range(4):
+    #         U_np = self.U[mu][:]
+    #         if grid.processor == 0:
+    #             f.create_dataset("sweep/" + str(self.swp_count) + "/gauge/" + str(mu), data=U_np)
+    #         for a in range(4):
+    #             e_np = np.real(self.e[mu][a][:])
+    #             if grid.processor == 0:
+    #                 f.create_dataset("sweep/" + str(self.swp_count) + "/tetrad/" + str(mu) + "/" + str(a), data=e_np)
+    #     g.message("saved U_mu and e_mu^a")
+    #     if grid.processor == 0:
+    #         f.close()
+
 
     def save_config(self, path):
         """ Save field configurations."""
@@ -85,16 +150,16 @@ class Simulation:
                       + "_a" + alpha + "_b" + beta + "_g" + gamma
                       + "_K" + K + "_o" + omega
                       + "_e" + eta + "_L" + str(self.L)
-                      + "_" + str(self.swp_count) + ".hdf5")
+                      + ".hdf5")
         g.message("saving to ", cfg_file)
         R, dete = self.compute_obs()
         g.message("measured observables")
         R_np = np.real(R[:])
         dete_np = np.real(dete[:])
-        grid = self.U[0].grid
+        grid = self.grid
         g.message("converted to numpy")
         if grid.processor == 0:
-            f = h5py.File(cfg_file, "w")
+            f = h5py.File(cfg_file, "a")
             g.message("opened database")
         if self.swp_count == 0:
             if grid.processor == 0:
@@ -125,6 +190,8 @@ class Simulation:
         g.message("saved U_mu and e_mu^a")
         if grid.processor == 0:
             f.close()
+
+
 
 
             
