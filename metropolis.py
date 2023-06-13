@@ -19,7 +19,7 @@ class Simulation:
         """
         self.L = L # symmetric lattice
         self.grid = g.grid([self.L]*4, g.double) # make the lattice
-        self.link_acpt = [0]*4*16
+        self.link_acpt = [0]*16
         self.tet_acpt = [0]*16
         self.load = False
         g.message(self.grid)
@@ -696,25 +696,28 @@ class Simulation:
 
     def update_links(self,):
         """ Metropolis update for the link variables."""
+        action = self.compute_action()
+        lo = [g.lattice(self.U[0]) for mu in range(4)]
         for mu in range(4):
-            action = self.compute_action()
+            lo[mu] @= self.U[mu]
             V_eye = g.identity(self.U[mu])
             V = self.random_links(scale=self.Uinc)
             V = g.where(self.mask, V, V_eye)
-            lo = self.U[mu]
-            lp = g.eval(V * lo)
-            self.U[mu] = g.eval(V * lo)
-            action_prime = self.compute_action()
-            prob = g.component.exp(action - action_prime)
-            rn = g.lattice(prob)
-            self.rng.uniform_real(rn)
-            accept = rn < prob
-            accept *= self.mask
-            self.link_acpt.pop()
-            # acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
-            acpt_amount = np.real(np.sum(accept[:]))
-            self.link_acpt.insert(0, acpt_amount)
-            self.U[mu] @= g.where(accept, lp, lo)
+            # lo = self.U[mu]
+            # lp = g.eval(V * lo)
+            self.U[mu] = g.eval(V * self.U[mu])
+        action_prime = self.compute_action()
+        prob = g.component.exp(action - action_prime)
+        rn = g.lattice(prob)
+        self.rng.uniform_real(rn)
+        accept = rn < prob
+        accept *= self.mask
+        self.link_acpt.pop()
+        # acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
+        acpt_amount = np.real(np.sum(accept[:]))
+        self.link_acpt.insert(0, acpt_amount)
+        for mu in range(4):
+            self.U[mu] @= g.where(accept, self.U[mu], lo[mu])
         # del lp, lo, V, V_eye, action, action_prime, prob, rn, accept
 
         
@@ -762,7 +765,7 @@ class Simulation:
 
     def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., measurement_rate=1, uacpt_rate=0.5, eacpt_rate=0.5):
         """ Runs the Metropolis algorithm."""
-        self.Uinc = 0.4
+        self.Uinc = 0.1
         self.einc = 0.01
         self.du_step = 0.01
         self.de_step = 0.001
@@ -802,7 +805,7 @@ class Simulation:
         act = np.real(np.sum(g.eval(self.compute_action())[:]) / self.L**4)
         # link_acceptance = np.real(np.mean(self.link_acpt))
         # tet_acceptance = np.real(np.mean(self.tet_acpt))
-        link_acceptance = np.sum(self.link_acpt) / (4 * self.L**4)
+        link_acceptance = np.sum(self.link_acpt) / self.L**4
         tet_acceptance = np.sum(self.tet_acpt) / self.L**4
         if abs(link_acceptance - self.target_u_acpt) < 0.02:
             pass
