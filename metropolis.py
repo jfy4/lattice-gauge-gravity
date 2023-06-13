@@ -719,25 +719,28 @@ class Simulation:
         
     def update_tetrads(self,):
         """ Metropolis update for the tetrad variables."""
+        action = self.compute_action()
+        eo = self.e.copy()
         for mu in range(4):
             for a in range(4):
-                action = self.compute_action()
                 ii_eye = g.lattice(self.e[mu][a])
                 ii_eye[:] = 0
                 ii = self.random_shift(scale=self.einc)
                 ii = g.where(self.mask, ii, ii_eye)
-                eo = self.e[mu][a]
-                ep = g.eval(ii + eo)
                 self.e[mu][a] = g.eval(ii + eo)
-                action_prime = self.compute_action()
-                prob = g.eval(g.component.exp(action - action_prime))
-                rn = g.lattice(prob)
-                self.rng.uniform_real(rn)
-                accept = rn < prob
-                accept *= self.mask
-                self.tet_acpt.pop()
-                acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
-                self.tet_acpt.insert(0, acpt_amount)
+        # ep = g.eval(ii + eo)
+        ep = self.e.copy()
+        action_prime = self.compute_action()
+        prob = g.eval(g.component.exp(action - action_prime))
+        rn = g.lattice(prob)
+        self.rng.uniform_real(rn)
+        accept = rn < prob
+        accept *= self.mask
+        self.tet_acpt.pop()
+        acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
+        self.tet_acpt.insert(0, acpt_amount)
+        for mu in range(4):
+            for a in range(4):
                 self.e[mu][a] @= g.where(accept, ep, eo)
         # del action, ii_eye, ii, eo, ep, action_prime, prob, rn, accept
 
