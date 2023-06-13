@@ -721,6 +721,7 @@ class Simulation:
         """ Metropolis update for the tetrad variables."""
         action = self.compute_action()
         eo = self.e.copy()
+        # print(eo[0][0][:])
         for mu in range(4):
             for a in range(4):
                 ii_eye = g.lattice(self.e[mu][a])
@@ -730,6 +731,7 @@ class Simulation:
                 self.e[mu][a] = g.eval(ii + self.e[mu][a])
         # ep = g.eval(ii + eo)
         ep = self.e.copy()
+        # print(ep[0][0][:])
         action_prime = self.compute_action()
         prob = g.eval(g.component.exp(action - action_prime))
         rn = g.lattice(prob)
