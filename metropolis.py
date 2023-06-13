@@ -727,7 +727,7 @@ class Simulation:
                 ii_eye[:] = 0
                 ii = self.random_shift(scale=self.einc)
                 ii = g.where(self.mask, ii, ii_eye)
-                self.e[mu][a] = g.eval(ii + eo)
+                self.e[mu][a] = g.eval(ii + self.e[mu][a])
         # ep = g.eval(ii + eo)
         ep = self.e.copy()
         action_prime = self.compute_action()
@@ -741,7 +741,7 @@ class Simulation:
         self.tet_acpt.insert(0, acpt_amount)
         for mu in range(4):
             for a in range(4):
-                self.e[mu][a] @= g.where(accept, ep, eo)
+                self.e[mu][a] @= g.where(accept, ep[mu][a], eo[mu][a])
         # del action, ii_eye, ii, eo, ep, action_prime, prob, rn, accept
 
 
@@ -784,7 +784,7 @@ class Simulation:
             if (self.swp_count % self.meas_rate == 0):
                 self.save_config(path)
                 pass
-            return
+            # return
 
     def sweep(self,):
         """ Performs a single sweep of the lattice for the links and tetrads."""
