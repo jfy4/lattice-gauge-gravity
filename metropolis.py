@@ -720,17 +720,20 @@ class Simulation:
     def update_tetrads(self,):
         """ Metropolis update for the tetrad variables."""
         action = self.compute_action()
-        eo = self.e.copy()
+        # print(eo[0][0][0,0,0,0], self.e[0][0][0,0,0,0])
+        eo = [[g.lattice(self.e[0][0]) for mu in range(4)] for a in range(4)]
         # print(eo[0][0][:])
         for mu in range(4):
             for a in range(4):
+                eo[mu][a] @= self.e[mu][a]
                 ii_eye = g.lattice(self.e[mu][a])
                 ii_eye[:] = 0
                 ii = self.random_shift(scale=self.einc)
                 ii = g.where(self.mask, ii, ii_eye)
                 self.e[mu][a] = g.eval(ii + self.e[mu][a])
+        print(eo[0][0][0,0,0,0], self.e[0][0][0,0,0,0])
         # ep = g.eval(ii + eo)
-        ep = self.e.copy()
+        # ep = self.e.copy()
         # print(ep[0][0][:])
         action_prime = self.compute_action()
         prob = g.eval(g.component.exp(action - action_prime))
@@ -743,7 +746,8 @@ class Simulation:
         self.tet_acpt.insert(0, acpt_amount)
         for mu in range(4):
             for a in range(4):
-                self.e[mu][a] @= g.where(accept, ep[mu][a], eo[mu][a])
+                # self.e[mu][a] @= g.where(accept, ep[mu][a], eo[mu][a])
+                self.e[mu][a] @= g.where(accept, self.e[mu][a], eo[mu][a])
         # del action, ii_eye, ii, eo, ep, action_prime, prob, rn, accept
 
 
@@ -757,9 +761,9 @@ class Simulation:
     def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., measurement_rate=1, uacpt_rate=0.6, eacpt_rate=0.6):
         """ Runs the Metropolis algorithm."""
         self.Uinc = 0.4
-        self.einc = 0.4
+        self.einc = 0.01
         self.du_step = 0.01
-        self.de_step = 0.01
+        self.de_step = 0.001
         self.target_u_acpt = uacpt_rate
         self.target_e_acpt = eacpt_rate
         self.meas_rate = measurement_rate
