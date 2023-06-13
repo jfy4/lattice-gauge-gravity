@@ -781,7 +781,7 @@ class Simulation:
             if (self.swp_count % self.meas_rate == 0):
                 self.save_config(path)
                 pass
-            return
+            # return
 
     def sweep(self,):
         """ Performs a single sweep of the lattice for the links and tetrads."""
