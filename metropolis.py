@@ -19,8 +19,8 @@ class Simulation:
         """
         self.L = L # symmetric lattice
         self.grid = g.grid([self.L]*4, g.double) # make the lattice
-        self.link_acpt = [0]*100
-        self.tet_acpt = [0]*100
+        self.link_acpt = [0]*4*16
+        self.tet_acpt = [0]*16
         self.load = False
         g.message(self.grid)
         # self.rng = g.random("seed string") # initialize random seed
@@ -711,7 +711,8 @@ class Simulation:
             accept = rn < prob
             accept *= self.mask
             self.link_acpt.pop()
-            acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
+            # acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
+            acpt_amount = np.real(np.sum(accept[:]))
             self.link_acpt.insert(0, acpt_amount)
             self.U[mu] @= g.where(accept, lp, lo)
         # del lp, lo, V, V_eye, action, action_prime, prob, rn, accept
@@ -731,7 +732,7 @@ class Simulation:
                 ii = self.random_shift(scale=self.einc)
                 ii = g.where(self.mask, ii, ii_eye)
                 self.e[mu][a] = g.eval(ii + self.e[mu][a])
-        print(eo[0][0][0,0,0,0], self.e[0][0][0,0,0,0])
+        # print(eo[0][0][0,0,0,0], self.e[0][0][0,0,0,0])
         # ep = g.eval(ii + eo)
         # ep = self.e.copy()
         # print(ep[0][0][:])
@@ -742,7 +743,8 @@ class Simulation:
         accept = rn < prob
         accept *= self.mask
         self.tet_acpt.pop()
-        acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
+        # acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
+        acpt_amount = np.real(np.sum(accept[:]))
         self.tet_acpt.insert(0, acpt_amount)
         for mu in range(4):
             for a in range(4):
@@ -758,7 +760,7 @@ class Simulation:
         self.update_links()
         self.update_tetrads()
 
-    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., measurement_rate=1, uacpt_rate=0.6, eacpt_rate=0.6):
+    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., measurement_rate=1, uacpt_rate=0.5, eacpt_rate=0.5):
         """ Runs the Metropolis algorithm."""
         self.Uinc = 0.4
         self.einc = 0.01
@@ -798,8 +800,10 @@ class Simulation:
         R_2x1 = g.qcd.gauge.rectangle(self.U, 2, 1)
         the_det = np.real(np.mean(det(self.e)[:]))
         act = np.real(np.sum(g.eval(self.compute_action())[:]) / self.L**4)
-        link_acceptance = np.real(np.mean(self.link_acpt))
-        tet_acceptance = np.real(np.mean(self.tet_acpt))
+        # link_acceptance = np.real(np.mean(self.link_acpt))
+        # tet_acceptance = np.real(np.mean(self.tet_acpt))
+        link_acceptance = np.sum(self.link_acpt) / (4 * self.L**4)
+        tet_acceptance = np.sum(self.tet_acpt) / self.L**4
         if abs(link_acceptance - self.target_u_acpt) < 0.02:
             pass
         elif link_acceptance < self.target_u_acpt:
