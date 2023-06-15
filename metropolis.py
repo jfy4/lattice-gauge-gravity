@@ -741,6 +741,7 @@ class Simulation:
         # print(ep[0][0][:])
         action_prime = self.compute_action()
         prob = g.eval(g.component.exp(action - action_prime))
+        print(prob)
         rn = g.lattice(prob)
         self.rng.uniform_real(rn)
         accept = rn < prob
@@ -787,15 +788,15 @@ class Simulation:
             # self.zeta = np.float64(zeta)
             self.eta = np.float64(eta)
             g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, eta = {self.eta}")
-            self.save_config(path)
+            # self.save_config(path)
         # self.check_R()
         while True:
             self.sweep()
             self.swp_count += 1
             if (self.swp_count % self.meas_rate == 0):
-                self.save_config(path)
+                # self.save_config(path)
                 pass
-            # return
+            return
 
     def sweep(self,):
         """ Performs a single sweep of the lattice for the links and tetrads."""
