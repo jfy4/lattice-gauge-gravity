@@ -24,7 +24,7 @@ class Simulation:
         self.load = False
         g.message(self.grid)
         # self.rng = g.random("seed string") # initialize random seed
-        self.rng = g.random("0") # initialize random seed
+        self.rng = g.random("2") # initialize random seed
         # make the Us
         self.make_Us()
 
@@ -724,9 +724,10 @@ class Simulation:
     def update_tetrads(self,):
         """ Metropolis update for the tetrad variables."""
         action = self.compute_action()
+        print(self.e[0][0][:][0])        
+        print("action", g.eval(action)[:][0])
         # print(eo[0][0][0,0,0,0], self.e[0][0][0,0,0,0])
         eo = [[g.lattice(self.e[0][0]) for mu in range(4)] for a in range(4)]
-        # print(eo[0][0][:])
         for mu in range(4):
             for a in range(4):
                 eo[mu][a] @= self.e[mu][a]
@@ -738,13 +739,17 @@ class Simulation:
         # print(eo[0][0][0,0,0,0], self.e[0][0][0,0,0,0])
         # ep = g.eval(ii + eo)
         # ep = self.e.copy()
-        # print(ep[0][0][:])
+        # print(eo[0][0][:])
         action_prime = self.compute_action()
+        print(self.e[0][0][:][0])
+        print("action prime", g.eval(action_prime)[:][0])
         prob = g.eval(g.component.exp(action - action_prime))
-        print(prob)
+        print("prob", prob[:][0])
         rn = g.lattice(prob)
         self.rng.uniform_real(rn)
+        print("random", rn[:][0])
         accept = rn < prob
+        print("accept", accept[:][0])
         accept *= self.mask
         self.tet_acpt.pop()
         # acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
@@ -796,7 +801,7 @@ class Simulation:
             if (self.swp_count % self.meas_rate == 0):
                 # self.save_config(path)
                 pass
-            return
+            # return
 
     def sweep(self,):
         """ Performs a single sweep of the lattice for the links and tetrads."""
