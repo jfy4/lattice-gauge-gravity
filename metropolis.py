@@ -176,10 +176,14 @@ class Simulation:
                 f.attrs['eta'] = self.eta
                 # f.attrs['sweep'] = self.swp_count
                 f.attrs['L'] = self.L
+                f.attrs['estep'] = self.de_step
+                f.attrs['Ustep'] = self.du_step
                 g.message("saved metadata")
         if grid.processor == 0:
             f.create_dataset("sweep/" + str(self.swp_count) + "/obs/R", data=R_np)
             f.create_dataset("sweep/" + str(self.swp_count) + "/obs/dete", data=dete_np)
+            f.create_dataset("sweep/" + str(self.swp_count) + "/einc", data=self.einc)
+            f.create_dataset("sweep/" + str(self.swp_count) + "/Uinc", data=self.Uinc)
         g.message("saved R and e")
         for mu in range(4):
             U_np = self.U[mu][:]
