@@ -21,10 +21,12 @@ class Simulation:
         self.grid = g.grid([self.L]*4, g.double) # make the lattice
         self.link_acpt = [0]*16
         self.tet_acpt = [0]*16
+        self.ones = g.real(self.grid)
+        self.ones[:] = 1.
         self.load = False
         g.message(self.grid)
         # self.rng = g.random("seed string") # initialize random seed
-        self.rng = g.random("2") # initialize random seed
+        self.rng = g.random("0") # initialize random seed
         # make the Us
         self.make_Us()
 
@@ -708,6 +710,7 @@ class Simulation:
             self.U[mu] = g.eval(V * self.U[mu])
         action_prime = self.compute_action()
         prob = g.component.exp(action - action_prime)
+        prob @= g.where(prob > self.ones, self.ones, prob)
         rn = g.lattice(prob)
         self.rng.uniform_real(rn)
         accept = rn < prob
@@ -724,8 +727,8 @@ class Simulation:
     def update_tetrads(self,):
         """ Metropolis update for the tetrad variables."""
         action = self.compute_action()
-        print(self.e[0][0][:][0])        
-        print("action", g.eval(action)[:][0])
+        # print(self.e[0][0][:][0])        
+        # print("action", g.eval(action)[:][0])
         # print(eo[0][0][0,0,0,0], self.e[0][0][0,0,0,0])
         eo = [[g.lattice(self.e[0][0]) for mu in range(4)] for a in range(4)]
         for mu in range(4):
@@ -741,15 +744,16 @@ class Simulation:
         # ep = self.e.copy()
         # print(eo[0][0][:])
         action_prime = self.compute_action()
-        print(self.e[0][0][:][0])
-        print("action prime", g.eval(action_prime)[:][0])
+        # print(self.e[0][0][:][0])
+        # print("action prime", g.eval(action_prime)[:][0])
         prob = g.eval(g.component.exp(action - action_prime))
-        print("prob", prob[:][0])
+        prob @= g.where(prob > self.ones, self.ones, prob)
+        # print("prob", prob[:][0])
         rn = g.lattice(prob)
         self.rng.uniform_real(rn)
-        print("random", rn[:][0])
+        # print("random", rn[:][0])
         accept = rn < prob
-        print("accept", accept[:][0])
+        # print("accept", accept[:][0])
         accept *= self.mask
         self.tet_acpt.pop()
         # acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
