@@ -51,16 +51,20 @@ class Simulation:
         self.omega = fields.attrs['omega']
         # self.zeta = fields.attrs['zeta']
         self.eta = fields.attrs['eta']
+        # self.de_step = fields.attrs['estep']
+        # self.du_step = fields.attrs['Ustep']
         self.swp_count = swp
-        self.rng = g.random(str(self.swp_count)) # initialize random seed
-        assert self.L == fields.attrs['L']        
+        self.rng = g.random(str(swp)) # initialize random seed
+        assert self.L == fields.attrs['L']
+        # self.einc = fields['sweep'][str(swp)]['einc']
+        # self.Uinc = fields['sweep'][str(swp)]['Uinc']
         for mu in range(4):
             self.U[mu][:] = fields['sweep'][str(swp)]['gauge'][str(mu)][:]
             for a in range(4):
                 self.e[mu][a][:] = fields['sweep'][str(swp)]['tetrad'][str(mu)][str(a)][:] + 0j
         g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, eta = {self.eta}")
         fields.close()
-        
+
 
     # def save_config(self, path):
     #     """ Save field configurations."""
@@ -200,7 +204,7 @@ class Simulation:
 
 
 
-            
+
     def inverse_tetrad(self, ):
         """ compute the inverse tetrad."""
         edet = det(self.e)
@@ -216,7 +220,7 @@ class Simulation:
                                               * val_a * val_mu) * inverse_dete
         return einv
 
-                
+
     def make_initial_mask(self,):
         """
         Makes a checkerboard mask such that every other site in
@@ -233,7 +237,7 @@ class Simulation:
     def random_shift(self, scale=1.0):
         """ Create random numbers from the normal distribution."""
         return self.rng.normal(g.real(self.grid), sigma=scale)
-    
+
     def make_eslash(self,):
         """ Make the slashed es."""
         eslash = [g.mspin(self.grid) for mu in range(4)]
@@ -258,7 +262,7 @@ class Simulation:
     def make_ginv(self,):
         """ make the inverse metric."""
         einvslash = self.make_einvslash()
-        ginv = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]            
+        ginv = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
         for mu, nu in it.product(range(4), repeat=2):
             ginv[mu][nu] = g.trace(einvslash[mu] * einvslash[nu] / 4)
         return ginv
@@ -267,7 +271,7 @@ class Simulation:
         """ Make a lattice of random link variables."""
         Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
                   [a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
-        lnV = g.mspin(self.grid) 
+        lnV = g.mspin(self.grid)
         lnV[:] = 0
         for a in range(0, 4):
             for b in range(0, 4):
@@ -308,11 +312,11 @@ class Simulation:
             g.cshift(U[nu], mu, 1) * g.adj(g.cshift(U[mu], nu, 1)) * g.adj(U[nu])
             + g.cshift(g.adj(g.cshift(U[nu], mu, 1)) * g.adj(U[mu]) * U[nu], nu, -1)
         )
-        
+
         F = g.eval(U[mu] * v + g.cshift(v * U[mu], mu, -1))
         F @= 0.125 * (F + g.adj(F))
         return F
-            
+
     # def make_ricci(self,):
     #     """ Make the Ricci curvature tensor."""
     #     eslash = self.make_eslash()
@@ -360,8 +364,8 @@ class Simulation:
     #     R *= g.component.inv(dete)
     #     g.message("real R", R[0,0,0,0])
     #     assert False
-            
-            
+
+
     # def make_riemann(self,):
     #     """ Make the Riemann curvature tensor."""
     #     eslash = self.make_eslash()
@@ -437,7 +441,7 @@ class Simulation:
                 continue
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
             trace_GmuGmu += g.trace(Gmunu * Gup[mu][nu])
-        for mu, nu, rho in munurho_loop:    
+        for mu, nu, rho in munurho_loop:
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
             BB += g.trace((3./16.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] -
                                                             einvslash[nu] * Gup[mu][rho]))
@@ -460,8 +464,8 @@ class Simulation:
     #                                                          +
     #                                                          2 * riemann_up[mu][rho][sig][nu]))
     #     return BigBsquared
-        
-    
+
+
     def compute_action(self,):
         """ Compute the gravity action site-wise."""
         R = g.real(self.grid)
@@ -552,9 +556,9 @@ class Simulation:
         R *= g.eval(g.component.inv(dete))
         dete = g.eval(dete)
         return (R, dete)
-        
-    
-    
+
+
+
     # def staple(self, mu):
     #     Emu = g.mspin(self.grid)
     #     Emu[:] = 0
@@ -568,18 +572,18 @@ class Simulation:
     #         # g.message(nu,rho,sig, val)
     #         sign_x_minus_nu = g.cshift(sign(det(self.e)), nu, -1)
     #         sign_x_plus_nu = g.cshift(sign(det(self.e)), nu, 1)
-            
+
     #         e_rho_x_plus_mu = g.cshift(eslash[rho], mu, 1)
     #         e_sig_x_plus_mu = g.cshift(eslash[sig], mu, 1)
     #         e_rho_x_plus_nu = g.cshift(eslash[rho], nu, 1)
     #         e_sig_x_plus_nu = g.cshift(eslash[sig], nu, 1)
     #         e_rho_x_minus_nu = g.cshift(eslash[rho], nu, -1)
     #         e_sig_x_minus_nu = g.cshift(eslash[sig], nu, -1)
-            
+
     #         U_nu_x_plus_mu = g.cshift(self.U[nu], mu, 1)
     #         U_nu_x_minus_nu = g.cshift(self.U[nu], nu, -1)
     #         U_mu_x_plus_nu = g.cshift(self.U[mu], nu, 1)
-            
+
     #         one = g.eval(U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
     #                      g.adj(self.U[nu]) * eslash[rho] * eslash[sig] *
     #                      g.gamma[5]) * sign(det(self.e))
@@ -649,8 +653,8 @@ class Simulation:
     #         Wmu += (eslash[nu] * g.gamma[5] *
     #                 g.qcd.gauge.field_strength(self.U, rho, sig) * val)
     #     return (self.lam / 96)*Vmu - (self.kappa / 32)*Wmu
-        
-            
+
+
     # def compute_link_action(self, mu):
     #     R = g.real(self.grid)
     #     R[:] = 0
@@ -698,11 +702,13 @@ class Simulation:
             self.U[mu] = g.matrix.exp(lnU[mu])
         del lnU, Ji2, omega
 
-    
+
 
     def update_links(self,):
         """ Metropolis update for the link variables."""
         action = self.compute_action()
+        print("action link", g.eval(action)[:][234])
+        print("mask", self.mask[:][234])
         lo = [g.lattice(self.U[0]) for mu in range(4)]
         for mu in range(4):
             lo[mu] @= self.U[mu]
@@ -712,27 +718,33 @@ class Simulation:
             # lo = self.U[mu]
             # lp = g.eval(V * lo)
             self.U[mu] = g.eval(V * self.U[mu])
+        print("proposed, original", self.U[mu][:][234], lo[mu][:][234])
         action_prime = self.compute_action()
+        print("action prime link", g.eval(action_prime)[:][234])
         prob = g.component.exp(action - action_prime)
+        print("prob link", prob[:][234])
         prob @= g.where(prob > self.ones, self.ones, prob)
         rn = g.lattice(prob)
         self.rng.uniform_real(rn)
         accept = rn < prob
         accept *= self.mask
+        print("accept link", accept[:][234])
         self.link_acpt.pop()
         # acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
         acpt_amount = np.real(np.sum(accept[:]))
         self.link_acpt.insert(0, acpt_amount)
         for mu in range(4):
+            # print("proposed, original", self.U[mu][:][234], lo[mu][:][234])
             self.U[mu] @= g.where(accept, self.U[mu], lo[mu])
+            # print("proposed, original", self.U[mu][:][234], lo[mu][:][234])
         # del lp, lo, V, V_eye, action, action_prime, prob, rn, accept
 
-        
+
     def update_tetrads(self,):
         """ Metropolis update for the tetrad variables."""
         action = self.compute_action()
-        # print(self.e[0][0][:][0])        
-        # print("action", g.eval(action)[:][0])
+        # print(self.e[0][0][:][0])
+        print("action tet", g.eval(action)[:][234])
         # print(eo[0][0][0,0,0,0], self.e[0][0][0,0,0,0])
         eo = [[g.lattice(self.e[0][0]) for mu in range(4)] for a in range(4)]
         for mu in range(4):
@@ -749,9 +761,10 @@ class Simulation:
         # print(eo[0][0][:])
         action_prime = self.compute_action()
         # print(self.e[0][0][:][0])
-        # print("action prime", g.eval(action_prime)[:][0])
+        print("action prime tet", g.eval(action_prime)[:][234])
         prob = g.eval(g.component.exp(action - action_prime))
         prob @= g.where(prob > self.ones, self.ones, prob)
+        print("prob tet", prob[:][234])
         # print("prob", prob[:][0])
         rn = g.lattice(prob)
         self.rng.uniform_real(rn)
@@ -770,8 +783,8 @@ class Simulation:
         # del action, ii_eye, ii, eo, ep, action_prime, prob, rn, accept
 
 
-            
-            
+
+
     def update_fields(self,):
         """ Update the links and the tetrads."""
         self.update_links()
@@ -827,7 +840,7 @@ class Simulation:
             self.Uinc -= self.du_step
         else:
             self.Uinc += self.du_step
-            
+
         if abs(tet_acceptance - self.target_e_acpt) < 0.02:
             pass
         elif tet_acceptance < self.target_e_acpt:
@@ -849,7 +862,7 @@ class Simulation:
 
 
 
-        
+
 
 
 
@@ -892,7 +905,7 @@ def make_levi():
     return arr
 
 def three_levi():
-    """ Makes the 4d Levi-Civita tensor with one index fixed.""" 
+    """ Makes the 4d Levi-Civita tensor with one index fixed."""
     arr = {i:dict() for i in range(4)}
     for i,j,k,l in it.product(range(4), repeat=4):
         prod = (i-j)*(i-k)*(i-l)*(j-k)*(j-l)*(k-l)
@@ -939,6 +952,6 @@ def munusig2():
 
 munusig1 = munusig1()
 munusig2 = munusig2()
-        
+
 
 
