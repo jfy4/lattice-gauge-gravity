@@ -832,12 +832,12 @@ class Simulation:
         """ Performs a single sweep of the lattice for the links and tetrads."""
         plaq = g.qcd.gauge.plaquette(self.U)
         R_2x1 = g.qcd.gauge.rectangle(self.U, 2, 1)
-        the_det = g.sum(det(self.e)) * (1. / self.L**4)
-        act = g.sum(g.eval(self.compute_action())) * (1. / self.L**4)
+        the_det = g.sum(det(self.e)).real * (1. / self.L**4)
+        act = g.sum(g.eval(self.compute_action())).real * (1. / self.L**4)
         # link_acceptance = np.real(np.mean(self.link_acpt))
         # tet_acceptance = np.real(np.mean(self.tet_acpt))
-        link_acceptance = g.sum(self.link_acpt) * (1. / self.L**4)
-        tet_acceptance = g.sum(self.tet_acpt) * (1. / self.L**4)
+        link_acceptance = np.sum(self.link_acpt).real * (1. / self.L**4)
+        tet_acceptance = np.sum(self.tet_acpt).real * (1. / self.L**4)
         if abs(link_acceptance - self.target_u_acpt) < 0.02:
             pass
         elif link_acceptance < self.target_u_acpt:
