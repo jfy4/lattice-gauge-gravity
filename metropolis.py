@@ -51,18 +51,21 @@ class Simulation:
         self.omega = fields.attrs['omega']
         # self.zeta = fields.attrs['zeta']
         self.eta = fields.attrs['eta']
-        # self.de_step = fields.attrs['estep']
-        # self.du_step = fields.attrs['Ustep']
+        self.de_step = fields.attrs['estep']
+        self.du_step = fields.attrs['Ustep']
         self.swp_count = swp
         self.rng = g.random(str(swp)) # initialize random seed
         assert self.L == fields.attrs['L']
-        # self.einc = fields['sweep'][str(swp)]['einc']
-        # self.Uinc = fields['sweep'][str(swp)]['Uinc']
+        self.einc = fields['sweep'][str(swp)]['einc'][()]
+        self.Uinc = fields['sweep'][str(swp)]['Uinc'][()]
+        # print("inc", self.einc, self.Uinc)
         for mu in range(4):
             self.U[mu][:] = fields['sweep'][str(swp)]['gauge'][str(mu)][:]
             for a in range(4):
                 self.e[mu][a][:] = fields['sweep'][str(swp)]['tetrad'][str(mu)][str(a)][:] + 0j
-        g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, eta = {self.eta}")
+        g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa},")
+        g.message(f"lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma},")
+        g.message(f"K = {self.K}, omega = {self.omega}, eta = {self.eta}, einc = {self.einc}, Uinc = {self.Uinc}")
         fields.close()
 
 
@@ -188,6 +191,7 @@ class Simulation:
             f.create_dataset("sweep/" + str(self.swp_count) + "/obs/dete", data=dete_np)
             f.create_dataset("sweep/" + str(self.swp_count) + "/einc", data=self.einc)
             f.create_dataset("sweep/" + str(self.swp_count) + "/Uinc", data=self.Uinc)
+            # print("saved inc", self.einc, self.Uinc)
         g.message("saved R and e")
         for mu in range(4):
             U_np = self.U[mu][:]
@@ -707,8 +711,8 @@ class Simulation:
     def update_links(self,):
         """ Metropolis update for the link variables."""
         action = self.compute_action()
-        print("action link", g.eval(action)[:][234])
-        print("mask", self.mask[:][234])
+        # print("action link", g.eval(action)[:][234])
+        # print("mask", self.mask[:][234])
         lo = [g.lattice(self.U[0]) for mu in range(4)]
         for mu in range(4):
             lo[mu] @= self.U[mu]
@@ -718,17 +722,17 @@ class Simulation:
             # lo = self.U[mu]
             # lp = g.eval(V * lo)
             self.U[mu] = g.eval(V * self.U[mu])
-        print("proposed, original", self.U[mu][:][234], lo[mu][:][234])
+        # print("proposed, original", self.U[mu][:][234], lo[mu][:][234]) # 
         action_prime = self.compute_action()
-        print("action prime link", g.eval(action_prime)[:][234])
+        # print("action prime link", g.eval(action_prime)[:][234])
         prob = g.component.exp(action - action_prime)
-        print("prob link", prob[:][234])
+        # print("prob link", prob[:][234])
         prob @= g.where(prob > self.ones, self.ones, prob)
         rn = g.lattice(prob)
         self.rng.uniform_real(rn)
         accept = rn < prob
         accept *= self.mask
-        print("accept link", accept[:][234])
+        # print("accept link", accept[:][234])
         self.link_acpt.pop()
         # acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
         acpt_amount = np.real(np.sum(accept[:]))
@@ -744,7 +748,7 @@ class Simulation:
         """ Metropolis update for the tetrad variables."""
         action = self.compute_action()
         # print(self.e[0][0][:][0])
-        print("action tet", g.eval(action)[:][234])
+        # print("action tet", g.eval(action)[:][234])
         # print(eo[0][0][0,0,0,0], self.e[0][0][0,0,0,0])
         eo = [[g.lattice(self.e[0][0]) for mu in range(4)] for a in range(4)]
         for mu in range(4):
@@ -761,10 +765,10 @@ class Simulation:
         # print(eo[0][0][:])
         action_prime = self.compute_action()
         # print(self.e[0][0][:][0])
-        print("action prime tet", g.eval(action_prime)[:][234])
+        # print("action prime tet", g.eval(action_prime)[:][234])
         prob = g.eval(g.component.exp(action - action_prime))
         prob @= g.where(prob > self.ones, self.ones, prob)
-        print("prob tet", prob[:][234])
+        # print("prob tet", prob[:][234])
         # print("prob", prob[:][0])
         rn = g.lattice(prob)
         self.rng.uniform_real(rn)
@@ -792,10 +796,6 @@ class Simulation:
 
     def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., measurement_rate=1, uacpt_rate=0.5, eacpt_rate=0.5):
         """ Runs the Metropolis algorithm."""
-        self.Uinc = 0.1
-        self.einc = 0.01
-        self.du_step = 0.01
-        self.de_step = 0.001
         self.target_u_acpt = uacpt_rate
         self.target_e_acpt = eacpt_rate
         self.meas_rate = measurement_rate
@@ -813,14 +813,18 @@ class Simulation:
             self.omega = np.float64(omega)
             # self.zeta = np.float64(zeta)
             self.eta = np.float64(eta)
+            self.Uinc = 0.1
+            self.einc = 0.01
+            self.du_step = 0.01
+            self.de_step = 0.001
             g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, eta = {self.eta}")
-            # self.save_config(path)
+            self.save_config(path)
         # self.check_R()
         while True:
             self.sweep()
             self.swp_count += 1
             if (self.swp_count % self.meas_rate == 0):
-                # self.save_config(path)
+                self.save_config(path)
                 pass
             # return
 
