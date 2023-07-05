@@ -19,8 +19,8 @@ class Simulation:
         """
         self.L = L # symmetric lattice
         self.grid = g.grid([self.L]*4, g.double) # make the lattice
-        self.link_acpt = [0]*16
-        self.tet_acpt = [0]*16
+        self.link_acpt = [0]*16 # this is 16 for the 16 different masks
+        self.tet_acpt = [0]*16 # same
         self.ones = g.real(self.grid)
         self.ones[:] = 1.
         self.load = False
@@ -735,7 +735,7 @@ class Simulation:
         # print("accept link", accept[:][234])
         self.link_acpt.pop()
         # acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
-        acpt_amount = np.real(np.sum(accept[:]))
+        acpt_amount = g.sum(accept)
         self.link_acpt.insert(0, acpt_amount)
         for mu in range(4):
             # print("proposed, original", self.U[mu][:][234], lo[mu][:][234])
@@ -778,7 +778,7 @@ class Simulation:
         accept *= self.mask
         self.tet_acpt.pop()
         # acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
-        acpt_amount = np.real(np.sum(accept[:]))
+        acpt_amount = g.sum(accept)
         self.tet_acpt.insert(0, acpt_amount)
         for mu in range(4):
             for a in range(4):
@@ -815,8 +815,8 @@ class Simulation:
             self.eta = np.float64(eta)
             self.Uinc = 0.1
             self.einc = 0.01
-            self.du_step = 0.01
-            self.de_step = 0.001
+            self.du_step = 0.001
+            self.de_step = 0.0001
             g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, eta = {self.eta}")
             self.save_config(path)
         # self.check_R()
@@ -832,19 +832,19 @@ class Simulation:
         """ Performs a single sweep of the lattice for the links and tetrads."""
         plaq = g.qcd.gauge.plaquette(self.U)
         R_2x1 = g.qcd.gauge.rectangle(self.U, 2, 1)
-        the_det = np.real(np.mean(det(self.e)[:]))
-        act = np.real(np.sum(g.eval(self.compute_action())[:]) / self.L**4)
+        the_det = g.sum(det(self.e)) * (1. / self.L**4)
+        act = g.sum(g.eval(self.compute_action())) * (1. / self.L**4)
         # link_acceptance = np.real(np.mean(self.link_acpt))
         # tet_acceptance = np.real(np.mean(self.tet_acpt))
-        link_acceptance = np.sum(self.link_acpt) / self.L**4
-        tet_acceptance = np.sum(self.tet_acpt) / self.L**4
+        link_acceptance = g.sum(self.link_acpt) * (1. / self.L**4)
+        tet_acceptance = g.sum(self.tet_acpt) * (1. / self.L**4)
         if abs(link_acceptance - self.target_u_acpt) < 0.02:
             pass
         elif link_acceptance < self.target_u_acpt:
             self.Uinc -= self.du_step
         else:
             self.Uinc += self.du_step
-
+            
         if abs(tet_acceptance - self.target_e_acpt) < 0.02:
             pass
         elif tet_acceptance < self.target_e_acpt:
