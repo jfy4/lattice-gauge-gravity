@@ -19,8 +19,10 @@ class Simulation:
         """
         self.L = L # symmetric lattice
         self.grid = g.grid([self.L]*4, g.double) # make the lattice
-        self.link_acpt = [0]*100
-        self.tet_acpt = [0]*100
+        self.link_acpt = [0]*16 # this is 16 for the 16 different masks
+        self.tet_acpt = [0]*16 # same
+        self.ones = g.real(self.grid)
+        self.ones[:] = 1.
         self.load = False
         g.message(self.grid)
         # self.rng = g.random("seed string") # initialize random seed
@@ -34,167 +36,77 @@ class Simulation:
         self.make_initial_mask()
 
 
-    def load_config(self, fields_path, swp_number):
+    def load_config(self, path, swp_number):
         """Load saved gauge and tetrad fields."""
         self.load = True
-        #files = os.listdir(fields_path)
-        fields = h5py.File(fields_path, 'r')
-        swp = swp_number
-        self.kappa = fields.attrs['kappa']
-        self.lam = fields.attrs['lambda']
-        self.alpha = fields.attrs['alpha']
-        self.beta = fields.attrs['beta']
-        self.gamma = fields.attrs['gamma']
-        self.K = fields.attrs['K']
-        self.omega = fields.attrs['omega']
-        # self.zeta = fields.attrs['zeta']
-        self.eta = fields.attrs['eta']
-        self.swp_count = swp
-        self.rng = g.random(str(self.swp_count)) # initialize random seed
-        assert self.L == fields.attrs['L']        
-        for mu in range(4):
-            self.U[mu][:] = fields['sweep'][str(swp)]['gauge'][str(mu)][:]
-            for a in range(4):
-                self.e[mu][a][:] = fields['sweep'][str(swp)]['tetrad'][str(mu)][str(a)][:] + 0j
-        g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, eta = {self.eta}")
-        fields.close()
-        
+        self.U = g.load(path + "gauge/gauge-fields_c" + str(swp_number))
+        self.e = g.load(path + "tetrad/tetrad-fields_c" + str(swp_number))
+        self.einc = g.load(path + "einc/einc_c" + str(swp_number))
+        self.Uinc = g.load(path + "Uinc/Uinc_c" + str(swp_number))
 
-    # def save_config(self, path):
-    #     """ Save field configurations."""
-    #     kappa = str(np.round(self.kappa, 8))
-    #     lam = str(np.round(self.lam, 8))
-    #     alpha = str(np.round(self.alpha, 8))
-    #     beta = str(np.round(self.beta, 8))
-    #     gamma = str(np.round(self.gamma, 8))
-    #     K = str(np.round(self.K, 8))
-    #     omega = str(np.round(self.omega, 8))
-    #     # zeta = str(np.round(self.zeta, 8))
-    #     eta = str(np.round(self.eta, 8))
-    #     # current_path = ("./k" + kappa + "_lam" + lam
-    #     #                 + "_a" + alpha + "_K" + K + "_o" + omega +
-    #     #                 "_z" + zeta + "_e" + eta +
-    #     #                 "_L" + str(self.L) + "/")
-    #     # try:
-    #     #     os.mkdir(current_path)
-    #     # except FileExistsError:
-    #     #     pass
-    #     #cfg_file = path + "fields_k" + kappa + "_lam" + lam
-    #     cfg_file = (path + "Spin4_k" + kappa + "_l" + lam
-    #                   + "_a" + alpha + "_b" + beta + "_g" + gamma
-    #                   + "_K" + K + "_o" + omega
-    #                   + "_e" + eta + "_L" + str(self.L)
-    #                   + "_" + str(self.swp_count) + ".hdf5")
-    #     g.message("saving to ", cfg_file)
-    #     R, dete = self.compute_obs()
-    #     g.message("measured observables")
-    #     R_np = np.real(R[:])
-    #     dete_np = np.real(dete[:])
-    #     grid = self.U[0].grid
-    #     g.message("converted to numpy")
-    #     if grid.processor == 0:
-    #         f = h5py.File(cfg_file, "w")
-    #         g.message("opened database")
-    #     if self.swp_count == 0:
-    #         if grid.processor == 0:
-    #             f.attrs['kappa'] = self.kappa
-    #             f.attrs['lambda'] = self.lam
-    #             f.attrs['alpha'] = self.alpha
-    #             f.attrs['beta'] = self.beta
-    #             f.attrs['gamma'] = self.gamma
-    #             f.attrs['K'] = self.K
-    #             f.attrs['omega'] = self.omega
-    #             # f.attrs['zeta'] = self.zeta
-    #             f.attrs['eta'] = self.eta
-    #             # f.attrs['sweep'] = self.swp_count
-    #             f.attrs['L'] = self.L
-    #             g.message("saved metadata")
-    #     if grid.processor == 0:
-    #         f.create_dataset("sweep/" + str(self.swp_count) + "/obs/R", data=R_np)
-    #         f.create_dataset("sweep/" + str(self.swp_count) + "/obs/dete", data=dete_np)
-    #     g.message("saved R and e")
-    #     for mu in range(4):
-    #         U_np = self.U[mu][:]
-    #         if grid.processor == 0:
-    #             f.create_dataset("sweep/" + str(self.swp_count) + "/gauge/" + str(mu), data=U_np)
-    #         for a in range(4):
-    #             e_np = np.real(self.e[mu][a][:])
-    #             if grid.processor == 0:
-    #                 f.create_dataset("sweep/" + str(self.swp_count) + "/tetrad/" + str(mu) + "/" + str(a), data=e_np)
-    #     g.message("saved U_mu and e_mu^a")
-    #     if grid.processor == 0:
-    #         f.close()
 
 
     def save_config(self, path):
         """ Save field configurations."""
-        kappa = str(np.round(self.kappa, 8))
-        lam = str(np.round(self.lam, 8))
-        alpha = str(np.round(self.alpha, 8))
-        beta = str(np.round(self.beta, 8))
-        gamma = str(np.round(self.gamma, 8))
-        K = str(np.round(self.K, 8))
-        omega = str(np.round(self.omega, 8))
-        # zeta = str(np.round(self.zeta, 8))
-        eta = str(np.round(self.eta, 8))
-        # current_path = ("./k" + kappa + "_lam" + lam
-        #                 + "_a" + alpha + "_K" + K + "_o" + omega +
-        #                 "_z" + zeta + "_e" + eta +
-        #                 "_L" + str(self.L) + "/")
-        # try:
-        #     os.mkdir(current_path)
-        # except FileExistsError:
-        #     pass
-        #cfg_file = path + "fields_k" + kappa + "_lam" + lam
-        cfg_file = (path + "Spin4_k" + kappa + "_l" + lam
-                      + "_a" + alpha + "_b" + beta + "_g" + gamma
-                      + "_K" + K + "_o" + omega
-                      + "_e" + eta + "_L" + str(self.L)
-                      + ".hdf5")
-        g.message("saving to ", cfg_file)
         R, dete = self.compute_obs()
-        g.message("measured observables")
-        R_np = np.real(R[:])
-        dete_np = np.real(dete[:])
-        grid = self.grid
-        g.message("converted to numpy")
-        if grid.processor == 0:
-            f = h5py.File(cfg_file, "a")
-            g.message("opened database")
         if self.swp_count == 0:
-            if grid.processor == 0:
-                f.attrs['kappa'] = self.kappa
-                f.attrs['lambda'] = self.lam
-                f.attrs['alpha'] = self.alpha
-                f.attrs['beta'] = self.beta
-                f.attrs['gamma'] = self.gamma
-                f.attrs['K'] = self.K
-                f.attrs['omega'] = self.omega
-                # f.attrs['zeta'] = self.zeta
-                f.attrs['eta'] = self.eta
-                # f.attrs['sweep'] = self.swp_count
-                f.attrs['L'] = self.L
-                g.message("saved metadata")
-        if grid.processor == 0:
-            f.create_dataset("sweep/" + str(self.swp_count) + "/obs/R", data=R_np)
-            f.create_dataset("sweep/" + str(self.swp_count) + "/obs/dete", data=dete_np)
-        g.message("saved R and e")
-        for mu in range(4):
-            U_np = self.U[mu][:]
-            if grid.processor == 0:
-                f.create_dataset("sweep/" + str(self.swp_count) + "/gauge/" + str(mu), data=U_np)
-            for a in range(4):
-                e_np = np.real(self.e[mu][a][:])
-                if grid.processor == 0:
-                    f.create_dataset("sweep/" + str(self.swp_count) + "/tetrad/" + str(mu) + "/" + str(a), data=e_np)
-        g.message("saved U_mu and e_mu^a")
-        if grid.processor == 0:
-            f.close()
+            with open(path + "metadata.txt", 'w') as f:
+                f.write("kappa   = " + str(self.kappa) + "\n")
+                f.write("lambda  = " + str(self.lam) + "\n")
+                f.write("alpha   = " + str(self.alpha) + "\n")
+                f.write("beta    = " + str(self.beta) + "\n")
+                f.write("K       = " + str(self.K) + "\n")
+                f.write("omega   = " + str(self.omega) + "\n")
+                f.write("eta     = " + str(self.eta) + "\n")
+                f.write("L       = " + str(self.L) + "\n")
+                f.write("de_step = " + str(self.de_step) + "\n")
+                f.write("du_step = " + str(self.du_step) + "\n")
+                f.write("meas    = " + str(self.meas_rate) + "\n")
+                f.write("Uacpt   = " + str(self.target_u_acpt) + "\n")
+                f.write("eacpt   = " + str(self.target_e_acpt) + "\n")
+            if self.grid.processor == 0:
+                try:
+                    os.mkdir(path + "einc")
+                except FileExistsError:
+                    pass
+                try:
+                    os.mkdir(path + "Uinc")
+                except FileExistsError:
+                    pass
+                try:
+                    os.mkdir(path + "dete")
+                except FileExistsError:
+                    pass
+                try:
+                    os.mkdir(path + "R")
+                except FileExistsError:
+                    pass
+                try:
+                    os.mkdir(path + "tetrad")
+                except FileExistsError:
+                    pass
+                try:
+                    os.mkdir(path + "gauge")
+                except FileExistsError:
+                    pass
+            g.save(path + "einc/einc_c" + str(self.swp_count), self.einc)
+            g.save(path + "Uinc/Uinc_c" + str(self.swp_count), self.Uinc)
+            g.save(path + "gauge/gauge-fields_c" + str(self.swp_count), self.U)
+            g.save(path + "tetrad/tetrad-fields_c" + str(self.swp_count), self.e)
+            g.save(path + "R/R_c" + str(self.swp_count), R)
+            g.save(path + "dete/dete_c" + str(self.swp_count), dete)
+        else:
+            g.save(path + "einc/einc_c" + str(self.swp_count), self.einc)
+            g.save(path + "Uinc/Uinc_c" + str(self.swp_count), self.Uinc)
+            g.save(path + "gauge/gauge-fields_c" + str(self.swp_count), self.U)
+            g.save(path + "tetrad/tetrad-fields_c" + str(self.swp_count), self.e)
+            g.save(path + "R/R_c" + str(self.swp_count), R)
+            g.save(path + "dete/dete_c" + str(self.swp_count), dete)
 
 
 
 
-            
+
     def inverse_tetrad(self, ):
         """ compute the inverse tetrad."""
         edet = det(self.e)
@@ -210,7 +122,7 @@ class Simulation:
                                               * val_a * val_mu) * inverse_dete
         return einv
 
-                
+
     def make_initial_mask(self,):
         """
         Makes a checkerboard mask such that every other site in
@@ -227,7 +139,7 @@ class Simulation:
     def random_shift(self, scale=1.0):
         """ Create random numbers from the normal distribution."""
         return self.rng.normal(g.real(self.grid), sigma=scale)
-    
+
     def make_eslash(self,):
         """ Make the slashed es."""
         eslash = [g.mspin(self.grid) for mu in range(4)]
@@ -252,7 +164,7 @@ class Simulation:
     def make_ginv(self,):
         """ make the inverse metric."""
         einvslash = self.make_einvslash()
-        ginv = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]            
+        ginv = [[g.real(self.grid) for mu in range(4)] for nu in range(4)]
         for mu, nu in it.product(range(4), repeat=2):
             ginv[mu][nu] = g.trace(einvslash[mu] * einvslash[nu] / 4)
         return ginv
@@ -261,7 +173,7 @@ class Simulation:
         """ Make a lattice of random link variables."""
         Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
                   [a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
-        lnV = g.mspin(self.grid) 
+        lnV = g.mspin(self.grid)
         lnV[:] = 0
         for a in range(0, 4):
             for b in range(0, 4):
@@ -302,11 +214,11 @@ class Simulation:
             g.cshift(U[nu], mu, 1) * g.adj(g.cshift(U[mu], nu, 1)) * g.adj(U[nu])
             + g.cshift(g.adj(g.cshift(U[nu], mu, 1)) * g.adj(U[mu]) * U[nu], nu, -1)
         )
-        
+
         F = g.eval(U[mu] * v + g.cshift(v * U[mu], mu, -1))
         F @= 0.125 * (F + g.adj(F))
         return F
-            
+
     # def make_ricci(self,):
     #     """ Make the Ricci curvature tensor."""
     #     eslash = self.make_eslash()
@@ -354,8 +266,8 @@ class Simulation:
     #     R *= g.component.inv(dete)
     #     g.message("real R", R[0,0,0,0])
     #     assert False
-            
-            
+
+
     # def make_riemann(self,):
     #     """ Make the Riemann curvature tensor."""
     #     eslash = self.make_eslash()
@@ -431,7 +343,7 @@ class Simulation:
                 continue
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
             trace_GmuGmu += g.trace(Gmunu * Gup[mu][nu])
-        for mu, nu, rho in munurho_loop:    
+        for mu, nu, rho in munurho_loop:
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
             BB += g.trace((3./16.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] -
                                                             einvslash[nu] * Gup[mu][rho]))
@@ -454,8 +366,8 @@ class Simulation:
     #                                                          +
     #                                                          2 * riemann_up[mu][rho][sig][nu]))
     #     return BigBsquared
-        
-    
+
+
     def compute_action(self,):
         """ Compute the gravity action site-wise."""
         R = g.real(self.grid)
@@ -546,9 +458,9 @@ class Simulation:
         R *= g.eval(g.component.inv(dete))
         dete = g.eval(dete)
         return (R, dete)
-        
-    
-    
+
+
+
     # def staple(self, mu):
     #     Emu = g.mspin(self.grid)
     #     Emu[:] = 0
@@ -562,18 +474,18 @@ class Simulation:
     #         # g.message(nu,rho,sig, val)
     #         sign_x_minus_nu = g.cshift(sign(det(self.e)), nu, -1)
     #         sign_x_plus_nu = g.cshift(sign(det(self.e)), nu, 1)
-            
+
     #         e_rho_x_plus_mu = g.cshift(eslash[rho], mu, 1)
     #         e_sig_x_plus_mu = g.cshift(eslash[sig], mu, 1)
     #         e_rho_x_plus_nu = g.cshift(eslash[rho], nu, 1)
     #         e_sig_x_plus_nu = g.cshift(eslash[sig], nu, 1)
     #         e_rho_x_minus_nu = g.cshift(eslash[rho], nu, -1)
     #         e_sig_x_minus_nu = g.cshift(eslash[sig], nu, -1)
-            
+
     #         U_nu_x_plus_mu = g.cshift(self.U[nu], mu, 1)
     #         U_nu_x_minus_nu = g.cshift(self.U[nu], nu, -1)
     #         U_mu_x_plus_nu = g.cshift(self.U[mu], nu, 1)
-            
+
     #         one = g.eval(U_nu_x_plus_mu * g.adj(U_mu_x_plus_nu) *
     #                      g.adj(self.U[nu]) * eslash[rho] * eslash[sig] *
     #                      g.gamma[5]) * sign(det(self.e))
@@ -643,8 +555,8 @@ class Simulation:
     #         Wmu += (eslash[nu] * g.gamma[5] *
     #                 g.qcd.gauge.field_strength(self.U, rho, sig) * val)
     #     return (self.lam / 96)*Vmu - (self.kappa / 32)*Wmu
-        
-            
+
+
     # def compute_link_action(self, mu):
     #     R = g.real(self.grid)
     #     R[:] = 0
@@ -692,69 +604,96 @@ class Simulation:
             self.U[mu] = g.matrix.exp(lnU[mu])
         del lnU, Ji2, omega
 
-    
+
 
     def update_links(self,):
         """ Metropolis update for the link variables."""
+        action = self.compute_action()
+        # print("action link", g.eval(action)[:][234])
+        # print("mask", self.mask[:][234])
+        lo = [g.lattice(self.U[0]) for mu in range(4)]
         for mu in range(4):
-            action = self.compute_action()
+            lo[mu] @= self.U[mu]
             V_eye = g.identity(self.U[mu])
             V = self.random_links(scale=self.Uinc)
             V = g.where(self.mask, V, V_eye)
-            lo = self.U[mu]
-            lp = g.eval(V * lo)
-            self.U[mu] = g.eval(V * lo)
-            action_prime = self.compute_action()
-            prob = g.component.exp(action - action_prime)
-            rn = g.lattice(prob)
-            self.rng.uniform_real(rn)
-            accept = rn < prob
-            accept *= self.mask
-            self.link_acpt.pop()
-            acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
-            self.link_acpt.insert(0, acpt_amount)
-            self.U[mu] @= g.where(accept, lp, lo)
+            # lo = self.U[mu]
+            # lp = g.eval(V * lo)
+            self.U[mu] = g.eval(V * self.U[mu])
+        # print("proposed, original", self.U[mu][:][234], lo[mu][:][234]) # 
+        action_prime = self.compute_action()
+        # print("action prime link", g.eval(action_prime)[:][234])
+        prob = g.component.exp(action - action_prime)
+        # print("prob link", prob[:][234])
+        prob @= g.where(prob > self.ones, self.ones, prob)
+        rn = g.lattice(prob)
+        self.rng.uniform_real(rn)
+        accept = rn < prob
+        accept *= self.mask
+        # print("accept link", accept[:][234])
+        self.link_acpt.pop()
+        # acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
+        acpt_amount = g.sum(accept)
+        self.link_acpt.insert(0, acpt_amount)
+        for mu in range(4):
+            # print("proposed, original", self.U[mu][:][234], lo[mu][:][234])
+            self.U[mu] @= g.where(accept, self.U[mu], lo[mu])
+            # print("proposed, original", self.U[mu][:][234], lo[mu][:][234])
         # del lp, lo, V, V_eye, action, action_prime, prob, rn, accept
 
-        
+
     def update_tetrads(self,):
         """ Metropolis update for the tetrad variables."""
+        action = self.compute_action()
+        # print(self.e[0][0][:][0])
+        # print("action tet", g.eval(action)[:][234])
+        # print(eo[0][0][0,0,0,0], self.e[0][0][0,0,0,0])
+        eo = [[g.lattice(self.e[0][0]) for mu in range(4)] for a in range(4)]
         for mu in range(4):
             for a in range(4):
-                action = self.compute_action()
+                eo[mu][a] @= self.e[mu][a]
                 ii_eye = g.lattice(self.e[mu][a])
                 ii_eye[:] = 0
                 ii = self.random_shift(scale=self.einc)
                 ii = g.where(self.mask, ii, ii_eye)
-                eo = self.e[mu][a]
-                ep = g.eval(ii + eo)
-                self.e[mu][a] = g.eval(ii + eo)
-                action_prime = self.compute_action()
-                prob = g.eval(g.component.exp(action - action_prime))
-                rn = g.lattice(prob)
-                self.rng.uniform_real(rn)
-                accept = rn < prob
-                accept *= self.mask
-                self.tet_acpt.pop()
-                acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
-                self.tet_acpt.insert(0, acpt_amount)
-                self.e[mu][a] @= g.where(accept, ep, eo)
+                self.e[mu][a] = g.eval(ii + self.e[mu][a])
+        # print(eo[0][0][0,0,0,0], self.e[0][0][0,0,0,0])
+        # ep = g.eval(ii + eo)
+        # ep = self.e.copy()
+        # print(eo[0][0][:])
+        action_prime = self.compute_action()
+        # print(self.e[0][0][:][0])
+        # print("action prime tet", g.eval(action_prime)[:][234])
+        prob = g.eval(g.component.exp(action - action_prime))
+        prob @= g.where(prob > self.ones, self.ones, prob)
+        # print("prob tet", prob[:][234])
+        # print("prob", prob[:][0])
+        rn = g.lattice(prob)
+        self.rng.uniform_real(rn)
+        # print("random", rn[:][0])
+        accept = rn < prob
+        # print("accept", accept[:][0])
+        accept *= self.mask
+        self.tet_acpt.pop()
+        # acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
+        acpt_amount = g.sum(accept)
+        self.tet_acpt.insert(0, acpt_amount)
+        for mu in range(4):
+            for a in range(4):
+                # self.e[mu][a] @= g.where(accept, ep[mu][a], eo[mu][a])
+                self.e[mu][a] @= g.where(accept, self.e[mu][a], eo[mu][a])
         # del action, ii_eye, ii, eo, ep, action_prime, prob, rn, accept
 
 
-            
-            
+
+
     def update_fields(self,):
         """ Update the links and the tetrads."""
         self.update_links()
         self.update_tetrads()
 
-    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., measurement_rate=1, uacpt_rate=0.6, eacpt_rate=0.6):
+    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., measurement_rate=1, uacpt_rate=0.5, eacpt_rate=0.5):
         """ Runs the Metropolis algorithm."""
-        self.Uinc = 0.4
-        self.einc = 0.4
-        self.du_step = 0.01
-        self.de_step = 0.01
         self.target_u_acpt = uacpt_rate
         self.target_e_acpt = eacpt_rate
         self.meas_rate = measurement_rate
@@ -772,6 +711,10 @@ class Simulation:
             self.omega = np.float64(omega)
             # self.zeta = np.float64(zeta)
             self.eta = np.float64(eta)
+            self.Uinc = 0.1
+            self.einc = 0.01
+            self.du_step = 0.001
+            self.de_step = 0.0001
             g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, eta = {self.eta}")
             self.save_config(path)
         # self.check_R()
@@ -787,10 +730,12 @@ class Simulation:
         """ Performs a single sweep of the lattice for the links and tetrads."""
         plaq = g.qcd.gauge.plaquette(self.U)
         R_2x1 = g.qcd.gauge.rectangle(self.U, 2, 1)
-        the_det = np.real(np.mean(det(self.e)[:]))
-        act = np.real(np.sum(g.eval(self.compute_action())[:]) / self.L**4)
-        link_acceptance = np.real(np.mean(self.link_acpt))
-        tet_acceptance = np.real(np.mean(self.tet_acpt))
+        the_det = g.sum(det(self.e)).real * (1. / self.L**4)
+        act = g.sum(g.eval(self.compute_action())).real * (1. / self.L**4)
+        # link_acceptance = np.real(np.mean(self.link_acpt))
+        # tet_acceptance = np.real(np.mean(self.tet_acpt))
+        link_acceptance = np.sum(self.link_acpt).real * (1. / self.L**4)
+        tet_acceptance = np.sum(self.tet_acpt).real * (1. / self.L**4)
         if abs(link_acceptance - self.target_u_acpt) < 0.02:
             pass
         elif link_acceptance < self.target_u_acpt:
@@ -819,7 +764,7 @@ class Simulation:
 
 
 
-        
+
 
 
 
@@ -862,7 +807,7 @@ def make_levi():
     return arr
 
 def three_levi():
-    """ Makes the 4d Levi-Civita tensor with one index fixed.""" 
+    """ Makes the 4d Levi-Civita tensor with one index fixed."""
     arr = {i:dict() for i in range(4)}
     for i,j,k,l in it.product(range(4), repeat=4):
         prod = (i-j)*(i-k)*(i-l)*(j-k)*(j-l)*(k-l)
@@ -909,6 +854,6 @@ def munusig2():
 
 munusig1 = munusig1()
 munusig2 = munusig2()
-        
+
 
 
