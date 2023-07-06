@@ -36,174 +36,72 @@ class Simulation:
         self.make_initial_mask()
 
 
-    def load_config(self, fields_path, swp_number):
+    def load_config(self, path, swp_number):
         """Load saved gauge and tetrad fields."""
         self.load = True
-        #files = os.listdir(fields_path)
-        fields = h5py.File(fields_path, 'r')
-        swp = swp_number
-        self.kappa = fields.attrs['kappa']
-        self.lam = fields.attrs['lambda']
-        self.alpha = fields.attrs['alpha']
-        self.beta = fields.attrs['beta']
-        self.gamma = fields.attrs['gamma']
-        self.K = fields.attrs['K']
-        self.omega = fields.attrs['omega']
-        # self.zeta = fields.attrs['zeta']
-        self.eta = fields.attrs['eta']
-        self.de_step = fields.attrs['estep']
-        self.du_step = fields.attrs['Ustep']
-        self.swp_count = swp
-        self.rng = g.random(str(swp)) # initialize random seed
-        assert self.L == fields.attrs['L']
-        self.einc = fields['sweep'][str(swp)]['einc'][()]
-        self.Uinc = fields['sweep'][str(swp)]['Uinc'][()]
-        # print("inc", self.einc, self.Uinc)
-        for mu in range(4):
-            self.U[mu][:] = fields['sweep'][str(swp)]['gauge'][str(mu)][:]
-            for a in range(4):
-                self.e[mu][a][:] = fields['sweep'][str(swp)]['tetrad'][str(mu)][str(a)][:] + 0j
-        g.message(f"Loaded config. Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa},")
-        g.message(f"lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma},")
-        g.message(f"K = {self.K}, omega = {self.omega}, eta = {self.eta}, einc = {self.einc}, Uinc = {self.Uinc}")
-        fields.close()
+        self.U = g.load(path + "gauge/gauge-fields_c" + str(swp_number))
+        self.e = g.load(path + "tetrad/tetrad-fields_c" + str(swp_number))
+        self.einc = g.load(path + "einc/einc_c" + str(swp_number))
+        self.Uinc = g.load(path + "Uinc/Uinc_c" + str(swp_number))
 
-
-    # def save_config(self, path):
-    #     """ Save field configurations."""
-    #     kappa = str(np.round(self.kappa, 8))
-    #     lam = str(np.round(self.lam, 8))
-    #     alpha = str(np.round(self.alpha, 8))
-    #     beta = str(np.round(self.beta, 8))
-    #     gamma = str(np.round(self.gamma, 8))
-    #     K = str(np.round(self.K, 8))
-    #     omega = str(np.round(self.omega, 8))
-    #     # zeta = str(np.round(self.zeta, 8))
-    #     eta = str(np.round(self.eta, 8))
-    #     # current_path = ("./k" + kappa + "_lam" + lam
-    #     #                 + "_a" + alpha + "_K" + K + "_o" + omega +
-    #     #                 "_z" + zeta + "_e" + eta +
-    #     #                 "_L" + str(self.L) + "/")
-    #     # try:
-    #     #     os.mkdir(current_path)
-    #     # except FileExistsError:
-    #     #     pass
-    #     #cfg_file = path + "fields_k" + kappa + "_lam" + lam
-    #     cfg_file = (path + "Spin4_k" + kappa + "_l" + lam
-    #                   + "_a" + alpha + "_b" + beta + "_g" + gamma
-    #                   + "_K" + K + "_o" + omega
-    #                   + "_e" + eta + "_L" + str(self.L)
-    #                   + "_" + str(self.swp_count) + ".hdf5")
-    #     g.message("saving to ", cfg_file)
-    #     R, dete = self.compute_obs()
-    #     g.message("measured observables")
-    #     R_np = np.real(R[:])
-    #     dete_np = np.real(dete[:])
-    #     grid = self.U[0].grid
-    #     g.message("converted to numpy")
-    #     if grid.processor == 0:
-    #         f = h5py.File(cfg_file, "w")
-    #         g.message("opened database")
-    #     if self.swp_count == 0:
-    #         if grid.processor == 0:
-    #             f.attrs['kappa'] = self.kappa
-    #             f.attrs['lambda'] = self.lam
-    #             f.attrs['alpha'] = self.alpha
-    #             f.attrs['beta'] = self.beta
-    #             f.attrs['gamma'] = self.gamma
-    #             f.attrs['K'] = self.K
-    #             f.attrs['omega'] = self.omega
-    #             # f.attrs['zeta'] = self.zeta
-    #             f.attrs['eta'] = self.eta
-    #             # f.attrs['sweep'] = self.swp_count
-    #             f.attrs['L'] = self.L
-    #             g.message("saved metadata")
-    #     if grid.processor == 0:
-    #         f.create_dataset("sweep/" + str(self.swp_count) + "/obs/R", data=R_np)
-    #         f.create_dataset("sweep/" + str(self.swp_count) + "/obs/dete", data=dete_np)
-    #     g.message("saved R and e")
-    #     for mu in range(4):
-    #         U_np = self.U[mu][:]
-    #         if grid.processor == 0:
-    #             f.create_dataset("sweep/" + str(self.swp_count) + "/gauge/" + str(mu), data=U_np)
-    #         for a in range(4):
-    #             e_np = np.real(self.e[mu][a][:])
-    #             if grid.processor == 0:
-    #                 f.create_dataset("sweep/" + str(self.swp_count) + "/tetrad/" + str(mu) + "/" + str(a), data=e_np)
-    #     g.message("saved U_mu and e_mu^a")
-    #     if grid.processor == 0:
-    #         f.close()
 
 
     def save_config(self, path):
         """ Save field configurations."""
-        kappa = str(np.round(self.kappa, 8))
-        lam = str(np.round(self.lam, 8))
-        alpha = str(np.round(self.alpha, 8))
-        beta = str(np.round(self.beta, 8))
-        gamma = str(np.round(self.gamma, 8))
-        K = str(np.round(self.K, 8))
-        omega = str(np.round(self.omega, 8))
-        # zeta = str(np.round(self.zeta, 8))
-        eta = str(np.round(self.eta, 8))
-        # current_path = ("./k" + kappa + "_lam" + lam
-        #                 + "_a" + alpha + "_K" + K + "_o" + omega +
-        #                 "_z" + zeta + "_e" + eta +
-        #                 "_L" + str(self.L) + "/")
-        # try:
-        #     os.mkdir(current_path)
-        # except FileExistsError:
-        #     pass
-        #cfg_file = path + "fields_k" + kappa + "_lam" + lam
-        cfg_file = (path + "Spin4_k" + kappa + "_l" + lam
-                      + "_a" + alpha + "_b" + beta + "_g" + gamma
-                      + "_K" + K + "_o" + omega
-                      + "_e" + eta + "_L" + str(self.L)
-                      + ".hdf5")
-        g.message("saving to ", cfg_file)
         R, dete = self.compute_obs()
-        g.message("measured observables")
-        R_np = np.real(R[:])
-        dete_np = np.real(dete[:])
-        grid = self.grid
-        g.message("converted to numpy")
-        if grid.processor == 0:
-            f = h5py.File(cfg_file, "a")
-            g.message("opened database")
         if self.swp_count == 0:
-            if grid.processor == 0:
-                f.attrs['kappa'] = self.kappa
-                f.attrs['lambda'] = self.lam
-                f.attrs['alpha'] = self.alpha
-                f.attrs['beta'] = self.beta
-                f.attrs['gamma'] = self.gamma
-                f.attrs['K'] = self.K
-                f.attrs['omega'] = self.omega
-                # f.attrs['zeta'] = self.zeta
-                f.attrs['eta'] = self.eta
-                # f.attrs['sweep'] = self.swp_count
-                f.attrs['L'] = self.L
-                f.attrs['estep'] = self.de_step
-                f.attrs['Ustep'] = self.du_step
-                g.message("saved metadata")
-        if grid.processor == 0:
-            f.create_dataset("sweep/" + str(self.swp_count) + "/obs/R", data=R_np)
-            f.create_dataset("sweep/" + str(self.swp_count) + "/obs/dete", data=dete_np)
-            f.create_dataset("sweep/" + str(self.swp_count) + "/einc", data=self.einc)
-            f.create_dataset("sweep/" + str(self.swp_count) + "/Uinc", data=self.Uinc)
-            # print("saved inc", self.einc, self.Uinc)
-        g.message("saved R and e")
-        for mu in range(4):
-            U_np = self.U[mu][:]
-            if grid.processor == 0:
-                f.create_dataset("sweep/" + str(self.swp_count) + "/gauge/" + str(mu), data=U_np)
-            for a in range(4):
-                e_np = np.real(self.e[mu][a][:])
-                if grid.processor == 0:
-                    f.create_dataset("sweep/" + str(self.swp_count) + "/tetrad/" + str(mu) + "/" + str(a), data=e_np)
-        g.message("saved U_mu and e_mu^a")
-        if grid.processor == 0:
-            f.close()
+            with open(path + "metadata.txt", 'w') as f:
+                f.write("kappa   = " + str(self.kappa) + "\n")
+                f.write("lambda  = " + str(self.lam) + "\n")
+                f.write("alpha   = " + str(self.alpha) + "\n")
+                f.write("beta    = " + str(self.beta) + "\n")
+                f.write("K       = " + str(self.K) + "\n")
+                f.write("omega   = " + str(self.omega) + "\n")
+                f.write("eta     = " + str(self.eta) + "\n")
+                f.write("L       = " + str(self.L) + "\n")
+                f.write("de_step = " + str(self.de_step) + "\n")
+                f.write("du_step = " + str(self.du_step) + "\n")
+                f.write("meas    = " + str(self.meas_rate) + "\n")
+                f.write("Uacpt   = " + str(self.target_u_acpt) + "\n")
+                f.write("eacpt   = " + str(self.target_e_acpt) + "\n")
+            if self.grid.processor == 0:
+                try:
+                    os.mkdir(path + "einc")
+                except FileExistsError:
+                    pass
+                try:
+                    os.mkdir(path + "Uinc")
+                except FileExistsError:
+                    pass
+                try:
+                    os.mkdir(path + "dete")
+                except FileExistsError:
+                    pass
+                try:
+                    os.mkdir(path + "R")
+                except FileExistsError:
+                    pass
+                try:
+                    os.mkdir(path + "tetrad")
+                except FileExistsError:
+                    pass
+                try:
+                    os.mkdir(path + "gauge")
+                except FileExistsError:
+                    pass
+            g.save(path + "einc/einc_c" + str(self.swp_count), self.einc)
+            g.save(path + "Uinc/Uinc_c" + str(self.swp_count), self.Uinc)
+            g.save(path + "gauge/gauge-fields_c" + str(self.swp_count), self.U)
+            g.save(path + "tetrad/tetrad-fields_c" + str(self.swp_count), self.e)
+            g.save(path + "R/R_c" + str(self.swp_count), R)
+            g.save(path + "dete/dete_c" + str(self.swp_count), dete)
+        else:
+            g.save(path + "einc/einc_c" + str(self.swp_count), self.einc)
+            g.save(path + "Uinc/Uinc_c" + str(self.swp_count), self.Uinc)
+            g.save(path + "gauge/gauge-fields_c" + str(self.swp_count), self.U)
+            g.save(path + "tetrad/tetrad-fields_c" + str(self.swp_count), self.e)
+            g.save(path + "R/R_c" + str(self.swp_count), R)
+            g.save(path + "dete/dete_c" + str(self.swp_count), dete)
 
 
 
