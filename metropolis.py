@@ -58,6 +58,7 @@ class Simulation:
                 f.write("K       = " + str(self.K) + "\n")
                 f.write("omega   = " + str(self.omega) + "\n")
                 f.write("eta     = " + str(self.eta) + "\n")
+                f.write("gamma   = " + str(self.gamma) + "\n")
                 f.write("L       = " + str(self.L) + "\n")
                 f.write("de_step = " + str(self.de_step) + "\n")
                 f.write("du_step = " + str(self.du_step) + "\n")
@@ -366,43 +367,77 @@ class Simulation:
     #                                                          +
     #                                                          2 * riemann_up[mu][rho][sig][nu]))
     #     return BigBsquared
-
-
-    def compute_action(self,):
-        """ Compute the gravity action site-wise."""
-        R = g.real(self.grid)
-        R[:] = 0
-        Rsq = g.real(self.grid)
-        Rsq[:] = 0
-        vol = g.real(self.grid)
-        vol[:] = 0
-        eslash = self.make_eslash()
+    def make_wilson(self,):
         wilson = g.real(self.grid)
         wilson[:] = 0
-        bigB = self.make_hard_terms()
         for mu, nu in it.product(range(4), repeat=2):
             if mu == nu:
                 continue
             Hmunu = self.symmetric_clover(self.U, mu, nu)
             wilson += g.trace(g.identity(Hmunu) - Hmunu)
+        return wilson
+
+
+    def make_RlamQ(self,):
+        R = g.real(self.grid)
+        R[:] = 0
+        Q = g.real(self.grid)
+        Q[:] = 0
+        vol = g.real(self.grid)
+        vol[:] = 0
         for idx, val in levi.items():
             mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
+            Grhosig = g.qcd.gauge.field_strength(self.U, rho, sig)
+            Q += g.trace(g.gamma[5] * Gmunu * Grhosig)
             R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig] * val)
             vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig] * val)
+        vol *= (1. / (4*4*3*2))
+        # absvol @= g.component.abs(vol)
+        R *= (g.component.inv(vol) * (1./16))
+        Q *= (1./(32 * np.pi**2))
+        return (g.eval(R), g.eval(vol), g.eval(Q))
+    # def make_Q(self,):
+    #     for idx, val in levi.items():
+    #         mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
+    #         Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
+    #     return Q
+
+    def compute_action(self,):
+        """ Compute the gravity action site-wise."""
+        # R = g.real(self.grid)
+        # R[:] = 0
+        Rsq = g.real(self.grid)
+        Rsq[:] = 0
+        # Q = g.real(self.grid)
+        # Q[:] = 0
+        # vol = g.real(self.grid)
+        # vol[:] = 0
+        wilson @= self.make_wilson()
+        eslash = self.make_eslash()
+        bigB = self.make_hard_terms()
+        # for idx, val in levi.items():
+        #     mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
+        #     Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
+        #     Grhosig = g.qcd.gauge.field_strength(self.U, rho, sig)
+        #     Q += g.trace(g.gamma[5] * Gmunu * Grhosig)
+        #     R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig] * val)
+        #     vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig] * val)
+        R, vol, Q = self.make_RlamQ()
         Rsq += R * R # g.component.pow(2)(R)
-        dete = det(self.e)
-        absdete = g.component.abs(dete)
-        wilson *= absdete
+        # dete = det(self.e)
+        absdete = g.component.abs(vol)
+        # wilson *= absdete
         # smallB *= absdete
-        bigB *= absdete
+        # bigB *= absdete
         meas = g.component.log(absdete)
-        action = (sign(dete) * ((self.lam / 96) * vol
-                                -(self.kappa / 32) * R
-                                + (self.alpha * Rsq * g.component.inv(dete) / 256))
+        action = (absdete * (self.lam
+                             -(self.kappa / 2) * R
+                             + (self.alpha * Rsq)
+                             + (self.omega * wilson)
+                             + (self.eta * bigB))
                   - (self.K * meas)
-                  + (self.omega * wilson)
-                  + (self.eta * bigB)
+                  - (self.gamma * Q)
                   )
         # del R, Rsq, vol, eslash, dete, meas, wilson, Hmunu, bigB, smallB
         return action
@@ -692,7 +727,7 @@ class Simulation:
         self.update_links()
         self.update_tetrads()
 
-    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., measurement_rate=1, uacpt_rate=0.5, eacpt_rate=0.5):
+    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., gamma=0., measurement_rate=1, uacpt_rate=0.5, eacpt_rate=0.5):
         """ Runs the Metropolis algorithm."""
         self.target_u_acpt = uacpt_rate
         self.target_e_acpt = eacpt_rate
@@ -711,11 +746,12 @@ class Simulation:
             self.omega = np.float64(omega)
             # self.zeta = np.float64(zeta)
             self.eta = np.float64(eta)
+            self.gamma = np.float64(gamma)
             self.Uinc = 0.1
             self.einc = 0.01
             self.du_step = 0.001
             self.de_step = 0.0001
-            g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, eta = {self.eta}")
+            g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, eta = {self.eta}, gamma = {self.gamma}")
             self.save_config(path)
         # self.check_R()
         while True:
