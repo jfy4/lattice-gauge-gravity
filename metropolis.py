@@ -349,7 +349,7 @@ class Simulation:
             BB += g.trace((3./16.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] -
                                                             einvslash[nu] * Gup[mu][rho]))
         BB -= (3./8.) * trace_GmuGmu
-        return BB
+        return g.eval(BB)
 
 
 
@@ -375,7 +375,7 @@ class Simulation:
                 continue
             Hmunu = self.symmetric_clover(self.U, mu, nu)
             wilson += g.trace(g.identity(Hmunu) - Hmunu)
-        return wilson
+        return g.eval(wilson)
 
 
     def make_RlamQ(self,):
@@ -385,6 +385,7 @@ class Simulation:
         Q[:] = 0
         vol = g.real(self.grid)
         vol[:] = 0
+        eslash = self.make_eslash()
         for idx, val in levi.items():
             mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
@@ -413,8 +414,8 @@ class Simulation:
         # Q[:] = 0
         # vol = g.real(self.grid)
         # vol[:] = 0
-        wilson @= self.make_wilson()
-        eslash = self.make_eslash()
+        wilson = self.make_wilson()
+        # eslash = self.make_eslash()
         bigB = self.make_hard_terms()
         # for idx, val in levi.items():
         #     mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
@@ -431,7 +432,7 @@ class Simulation:
         # smallB *= absdete
         # bigB *= absdete
         meas = g.component.log(absdete)
-        action = (absdete * (self.lam
+        action = (absdete * (self.lam * g.identity(absdete)
                              -(self.kappa / 2) * R
                              + (self.alpha * Rsq)
                              + (self.omega * wilson)
@@ -727,7 +728,7 @@ class Simulation:
         self.update_links()
         self.update_tetrads()
 
-    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., gamma=0., measurement_rate=1, uacpt_rate=0.5, eacpt_rate=0.5):
+    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., measurement_rate=1, uacpt_rate=0.5, eacpt_rate=0.5):
         """ Runs the Metropolis algorithm."""
         self.target_u_acpt = uacpt_rate
         self.target_e_acpt = eacpt_rate
@@ -746,7 +747,6 @@ class Simulation:
             self.omega = np.float64(omega)
             # self.zeta = np.float64(zeta)
             self.eta = np.float64(eta)
-            self.gamma = np.float64(gamma)
             self.Uinc = 0.1
             self.einc = 0.01
             self.du_step = 0.001
