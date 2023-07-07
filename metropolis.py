@@ -47,8 +47,8 @@ class Simulation:
         self.save_wilson[:] = 0
         self.save_action = g.real(self.grid)
         self.save_action[:] = 0
-        self.save_reimsq = g.real(self.grid)
-        self.save_reimsq[:] = 0
+        self.save_riemsq = g.real(self.grid)
+        self.save_riemsq[:] = 0
 
 
     def load_config(self, path, swp_number):
@@ -81,6 +81,10 @@ class Simulation:
                 f.write("Uacpt   = " + str(self.target_u_acpt) + "\n")
                 f.write("eacpt   = " + str(self.target_e_acpt) + "\n")
             if self.grid.processor == 0:
+                try:
+                    os.mkdir(path + "riemsq")
+                except FileExistsError:
+                    pass
                 try:
                     os.mkdir(path + "action")
                 except FileExistsError:
@@ -125,8 +129,13 @@ class Simulation:
             g.save(path + "Uinc/Uinc_c" + str(self.swp_count), self.Uinc)
             g.save(path + "gauge/gauge-fields_c" + str(self.swp_count), self.U)
             g.save(path + "tetrad/tetrad-fields_c" + str(self.swp_count), self.e)
-            g.save(path + "R/R_c" + str(self.swp_count), R)
-            g.save(path + "dete/dete_c" + str(self.swp_count), dete)
+            g.save(path + "R/R_c" + str(self.swp_count), self.save_R)
+            g.save(path + "dete/dete_c" + str(self.swp_count), self.save_dete)
+            g.save(path + "Q/Q_c" + str(self.swp_count), self.save_Q)
+            g.save(path + "wilson/wilson_c" + str(self.swp_count), self.save_wilson)
+            g.save(path + "riemsq/riemsq_c" + str(self.swp_count), self.save_riemsq)
+            g.save(path + "action/action_c" + str(self.swp_count), self.save_action)
+            g.save(path + "BB/BB_c" + str(self.swp_count), self.save_BB)
         else:
             g.save(path + "einc/einc_c" + str(self.swp_count), self.einc)
             g.save(path + "Uinc/Uinc_c" + str(self.swp_count), self.Uinc)
@@ -134,6 +143,11 @@ class Simulation:
             g.save(path + "tetrad/tetrad-fields_c" + str(self.swp_count), self.e)
             g.save(path + "R/R_c" + str(self.swp_count), R)
             g.save(path + "dete/dete_c" + str(self.swp_count), dete)
+            g.save(path + "Q/Q_c" + str(self.swp_count), self.save_Q)
+            g.save(path + "wilson/wilson_c" + str(self.swp_count), self.save_wilson)
+            g.save(path + "riemsq/riemsq_c" + str(self.swp_count), self.save_riemsq)
+            g.save(path + "action/action_c" + str(self.swp_count), self.save_action)
+            g.save(path + "BB/BB_c" + str(self.swp_count), self.save_BB)
 
 
 
@@ -444,7 +458,7 @@ class Simulation:
         Rsq = g.real(self.grid)
         Rsq[:] = 0
         wilson = self.make_wilson()
-        bigB, reimsq = self.make_hard_terms()
+        bigB, riemsq = self.make_hard_terms()
         R, vol, Q = self.make_RlamQ()
         Rsq += R * R # g.component.pow(2)(R)
         absdete = g.component.abs(vol)
@@ -457,6 +471,13 @@ class Simulation:
                   - (self.K * meas)
                   - (self.gamma * Q)
                   )
+        self.save_action @= action
+        self.save_Q @= Q
+        self.save_R @= R
+        self.save_dete @= vol
+        self.save_wilson @= wilson
+        self.save_BB @= bigB
+        self.save_riemsq @= riemsq
         # del R, Rsq, vol, eslash, dete, meas, wilson, Hmunu, bigB, smallB
         return action
 
