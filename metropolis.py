@@ -35,6 +35,21 @@ class Simulation:
         # make the checkerboard mask
         self.make_initial_mask()
 
+        self.save_BB = g.real(self.grid)
+        self.save_BB[:] 0
+        self.save_R = g.real(self.grid)
+        self.save_R[:] = 0
+        self.save_dete = g.real(self.grid)
+        self.save_dete[:] = 0
+        self.save_Q = g.real(self.grid)
+        self.save_Q[:] = 0
+        self.save_wilson = g.real(self.grid)
+        self.save_wilson[:] = 0
+        self.save_action = g.real(self.grid)
+        self.save_action[:] = 0
+        self.save_reimsq = g.real(self.grid)
+        self.save_reimsq[:] = 0
+
 
     def load_config(self, path, swp_number):
         """Load saved gauge and tetrad fields."""
@@ -66,6 +81,22 @@ class Simulation:
                 f.write("Uacpt   = " + str(self.target_u_acpt) + "\n")
                 f.write("eacpt   = " + str(self.target_e_acpt) + "\n")
             if self.grid.processor == 0:
+                try:
+                    os.mkdir(path + "action")
+                except FileExistsError:
+                    pass
+                try:
+                    os.mkdir(path + "BB")
+                except FileExistsError:
+                    pass
+                try:
+                    os.mkdir(path + "wilson")
+                except FileExistsError:
+                    pass
+                try:
+                    os.mkdir(path + "Q")
+                except FileExistsError:
+                    pass
                 try:
                     os.mkdir(path + "einc")
                 except FileExistsError:
@@ -332,6 +363,7 @@ class Simulation:
 
 
     def make_hard_terms(self,):
+        """ Make Bmunurhosig Bmunurhosig """
         Gup = self.make_Gup()
         eslash = self.make_eslash()
         einvslash = self.make_einvslash()
@@ -349,7 +381,7 @@ class Simulation:
             BB += g.trace((3./16.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] -
                                                             einvslash[nu] * Gup[mu][rho]))
         BB -= (3./8.) * trace_GmuGmu
-        return g.eval(BB)
+        return (g.eval(BB), g.eval((-1. / 8) * trace_GmuGmu))
 
 
 
@@ -367,7 +399,9 @@ class Simulation:
     #                                                          +
     #                                                          2 * riemann_up[mu][rho][sig][nu]))
     #     return BigBsquared
+
     def make_wilson(self,):
+        """ make the wilson term """
         wilson = g.real(self.grid)
         wilson[:] = 0
         for mu, nu in it.product(range(4), repeat=2):
@@ -379,6 +413,7 @@ class Simulation:
 
 
     def make_RlamQ(self,):
+        """  Make R, dete, and Q """
         R = g.real(self.grid)
         R[:] = 0
         Q = g.real(self.grid)
@@ -406,31 +441,13 @@ class Simulation:
 
     def compute_action(self,):
         """ Compute the gravity action site-wise."""
-        # R = g.real(self.grid)
-        # R[:] = 0
         Rsq = g.real(self.grid)
         Rsq[:] = 0
-        # Q = g.real(self.grid)
-        # Q[:] = 0
-        # vol = g.real(self.grid)
-        # vol[:] = 0
         wilson = self.make_wilson()
-        # eslash = self.make_eslash()
-        bigB = self.make_hard_terms()
-        # for idx, val in levi.items():
-        #     mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
-        #     Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
-        #     Grhosig = g.qcd.gauge.field_strength(self.U, rho, sig)
-        #     Q += g.trace(g.gamma[5] * Gmunu * Grhosig)
-        #     R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig] * val)
-        #     vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig] * val)
+        bigB, reimsq = self.make_hard_terms()
         R, vol, Q = self.make_RlamQ()
         Rsq += R * R # g.component.pow(2)(R)
-        # dete = det(self.e)
         absdete = g.component.abs(vol)
-        # wilson *= absdete
-        # smallB *= absdete
-        # bigB *= absdete
         meas = g.component.log(absdete)
         action = (absdete * (self.lam * g.identity(absdete)
                              -(self.kappa / 2) * R
