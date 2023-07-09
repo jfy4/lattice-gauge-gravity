@@ -36,7 +36,7 @@ class Simulation:
         self.make_initial_mask()
 
         self.save_BB = g.real(self.grid)
-        self.save_BB[:] 0
+        self.save_BB[:] = 0
         self.save_R = g.real(self.grid)
         self.save_R[:] = 0
         self.save_dete = g.real(self.grid)
@@ -65,7 +65,7 @@ class Simulation:
 
     def save_config(self, path):
         """ Save field configurations."""
-        R, dete = self.compute_obs()
+        # R, dete = self.compute_obs()
         if self.swp_count == 0:
             with open(path + "metadata.txt", 'w') as f:
                 f.write("kappa   = " + str(self.kappa) + "\n")
@@ -148,8 +148,8 @@ class Simulation:
             g.save(path + "Uinc/Uinc_c" + str(self.swp_count), self.Uinc)
             g.save(path + "gauge/gauge-fields_c" + str(self.swp_count), self.U)
             g.save(path + "tetrad/tetrad-fields_c" + str(self.swp_count), self.e)
-            g.save(path + "R/R_c" + str(self.swp_count), R)
-            g.save(path + "dete/dete_c" + str(self.swp_count), dete)
+            g.save(path + "R/R_c" + str(self.swp_count), self.save_R)
+            g.save(path + "dete/dete_c" + str(self.swp_count), self.save_dete)
             g.save(path + "Q/Q_c" + str(self.swp_count), self.save_Q)
             g.save(path + "wilson/wilson_c" + str(self.swp_count), self.save_wilson)
             g.save(path + "riemsq/riemsq_c" + str(self.swp_count), self.save_riemsq)
@@ -461,11 +461,6 @@ class Simulation:
         R *= (g.component.inv(vol) * (1./16))
         Q *= (1./(32 * np.pi**2))
         return (g.eval(R), g.eval(vol), g.eval(Q))
-    # def make_Q(self,):
-    #     for idx, val in levi.items():
-    #         mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
-    #         Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
-    #     return Q
 
     def compute_action(self,):
         """ Compute the gravity action site-wise."""
@@ -533,20 +528,20 @@ class Simulation:
     #     # del R, Rsq, vol, eslash, dete, meas, wilson, Hmunu, bigB, smallB
     #     return action
 
-    def compute_obs(self,):
-        """ Compute the R and dete."""
-        R = g.real(self.grid)
-        R[:] = 0
-        eslash = self.make_eslash()
-        for idx, val in levi.items():
-            mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
-            Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
-            R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig] * val)
-        R /= 16
-        dete = det(self.e)
-        R *= g.eval(g.component.inv(dete))
-        dete = g.eval(dete)
-        return (R, dete)
+    # def compute_obs(self,):
+    #     """ Compute the R and dete."""
+    #     R = g.real(self.grid)
+    #     R[:] = 0
+    #     eslash = self.make_eslash()
+    #     for idx, val in levi.items():
+    #         mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
+    #         Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
+    #         R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig] * val)
+    #     R /= 16
+    #     dete = det(self.e)
+    #     R *= g.eval(g.component.inv(dete))
+    #     dete = g.eval(dete)
+    #     return (R, dete)
 
 
 
