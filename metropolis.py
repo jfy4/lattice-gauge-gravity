@@ -49,6 +49,8 @@ class Simulation:
         self.save_action[:] = 0
         self.save_riemsq = g.real(self.grid)
         self.save_riemsq[:] = 0
+        self.save_riccisq = g.real(self.grid)
+        self.save_riccisq[:] = 0
 
 
     def load_config(self, path, swp_number):
@@ -81,6 +83,10 @@ class Simulation:
                 f.write("Uacpt   = " + str(self.target_u_acpt) + "\n")
                 f.write("eacpt   = " + str(self.target_e_acpt) + "\n")
             if self.grid.processor == 0:
+                try:
+                    os.mkdir(path + "riccisq")
+                except FileExistsError:
+                    pass
                 try:
                     os.mkdir(path + "riemsq")
                 except FileExistsError:
@@ -136,6 +142,7 @@ class Simulation:
             g.save(path + "riemsq/riemsq_c" + str(self.swp_count), self.save_riemsq)
             g.save(path + "action/action_c" + str(self.swp_count), self.save_action)
             g.save(path + "BB/BB_c" + str(self.swp_count), self.save_BB)
+            g.save(path + "riccisq/riccisq_c" + str(self.swp_count), self.save_riccisq)
         else:
             g.save(path + "einc/einc_c" + str(self.swp_count), self.einc)
             g.save(path + "Uinc/Uinc_c" + str(self.swp_count), self.Uinc)
@@ -148,6 +155,7 @@ class Simulation:
             g.save(path + "riemsq/riemsq_c" + str(self.swp_count), self.save_riemsq)
             g.save(path + "action/action_c" + str(self.swp_count), self.save_action)
             g.save(path + "BB/BB_c" + str(self.swp_count), self.save_BB)
+            g.save(path + "riccisq/riccisq_c" + str(self.swp_count), self.save_riccisq)
 
 
 
@@ -385,6 +393,8 @@ class Simulation:
         trace_GmuGmu[:] = 0
         BB = g.real(self.grid)
         BB[:] = 0
+        riccisq = g.real(self.grid)
+        riccisq[:] = 0
         for mu, nu in it.product(range(4), repeat=2):
             if mu == nu:
                 continue
@@ -394,8 +404,12 @@ class Simulation:
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
             BB += g.trace((3./16.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] -
                                                             einvslash[nu] * Gup[mu][rho]))
+            riccisq += g.trace((1./32.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] +
+                                                            einvslash[nu] * Gup[mu][rho]))
+            
         BB -= (3./8.) * trace_GmuGmu
-        return (g.eval(BB), g.eval((-1. / 8) * trace_GmuGmu))
+        riccisq -= (1./16) * trace_GmuGmu
+        return (g.eval(BB), g.eval((-1. / 8) * trace_GmuGmu), g.eval(riccisq))
 
 
 
@@ -458,7 +472,7 @@ class Simulation:
         Rsq = g.real(self.grid)
         Rsq[:] = 0
         wilson = self.make_wilson()
-        bigB, riemsq = self.make_hard_terms()
+        bigB, riemsq, riccisq = self.make_hard_terms()
         R, vol, Q = self.make_RlamQ()
         Rsq += R * R # g.component.pow(2)(R)
         absdete = g.component.abs(vol)
@@ -478,6 +492,7 @@ class Simulation:
         self.save_wilson @= wilson
         self.save_BB @= bigB
         self.save_riemsq @= riemsq
+        self.save_riccisq @= riccisq
         # del R, Rsq, vol, eslash, dete, meas, wilson, Hmunu, bigB, smallB
         return action
 
