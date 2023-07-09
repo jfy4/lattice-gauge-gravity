@@ -781,7 +781,7 @@ class Simulation:
         self.update_links()
         self.update_tetrads()
 
-    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., measurement_rate=1, uacpt_rate=0.5, eacpt_rate=0.5):
+    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., measurement_rate=1, uacpt_rate=0.5, eacpt_rate=0.5, save=True):
         """ Runs the Metropolis algorithm."""
         self.target_u_acpt = uacpt_rate
         self.target_e_acpt = eacpt_rate
@@ -804,14 +804,19 @@ class Simulation:
             self.einc = 0.01
             self.du_step = 0.001
             self.de_step = 0.0001
-            g.message(f"Sweep count = {self.swp_count}, L = {self.L}, kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}, beta = {self.beta}, gamma = {self.gamma}, K = {self.K}, omega = {self.omega}, eta = {self.eta}, gamma = {self.gamma}")
-            self.save_config(path)
+            g.message(f"Sweep count = {self.swp_count}, L = {self.L}")
+            g.message(f"kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}")
+            g.message(f"beta = {self.beta}, gamma = {self.gamma}, K = {self.K}")
+            g.message(f"omega = {self.omega}, eta = {self.eta}, gamma = {self.gamma}")
+            if save:
+                self.save_config(path)
         # self.check_R()
         while True:
             self.sweep()
             self.swp_count += 1
             if (self.swp_count % self.meas_rate == 0):
-                self.save_config(path)
+                if save:
+                    self.save_config(path)
                 pass
             # return
 
