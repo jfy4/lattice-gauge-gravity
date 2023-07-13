@@ -66,6 +66,7 @@ class Simulation:
     def save_config(self, path):
         """ Save field configurations."""
         # R, dete = self.compute_obs()
+        self.compute_action(save=True)
         if self.swp_count == 0:
             with open(path + "metadata.txt", 'w') as f:
                 f.write("kappa   = " + str(self.kappa) + "\n")
@@ -131,6 +132,7 @@ class Simulation:
                     os.mkdir(path + "gauge")
                 except FileExistsError:
                     pass
+            # print("R", g.eval(g.sum(self.save_R).real * (1./self.L**4)))
             g.save(path + "einc/einc_c" + str(self.swp_count), self.einc)
             g.save(path + "Uinc/Uinc_c" + str(self.swp_count), self.Uinc)
             g.save(path + "gauge/gauge-fields_c" + str(self.swp_count), self.U)
@@ -144,6 +146,7 @@ class Simulation:
             g.save(path + "BB/BB_c" + str(self.swp_count), self.save_BB)
             g.save(path + "riccisq/riccisq_c" + str(self.swp_count), self.save_riccisq)
         else:
+            # print("R", g.eval(g.sum(self.save_R).real * (1./self.L**4)))
             g.save(path + "einc/einc_c" + str(self.swp_count), self.einc)
             g.save(path + "Uinc/Uinc_c" + str(self.swp_count), self.Uinc)
             g.save(path + "gauge/gauge-fields_c" + str(self.swp_count), self.U)
@@ -453,7 +456,7 @@ class Simulation:
             mu, nu, rho, sig = idx[0], idx[1], idx[2], idx[3]
             Gmunu = g.qcd.gauge.field_strength(self.U, mu, nu)
             Grhosig = g.qcd.gauge.field_strength(self.U, rho, sig)
-            Q += g.trace(g.gamma[5] * Gmunu * Grhosig)
+            Q += g.trace(g.gamma[5] * Gmunu * Grhosig * val)
             R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig] * val)
             vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig] * val)
         vol *= (1. / (4*4*3*2))
@@ -462,7 +465,7 @@ class Simulation:
         Q *= (1./(32 * np.pi**2))
         return (g.eval(R), g.eval(vol), g.eval(Q))
 
-    def compute_action(self,):
+    def compute_action(self, save=False):
         """ Compute the gravity action site-wise."""
         Rsq = g.real(self.grid)
         Rsq[:] = 0
@@ -480,15 +483,15 @@ class Simulation:
                   - (self.K * meas)
                   - (self.gamma * Q)
                   )
-        self.save_action @= action
-        self.save_Q @= Q
-        self.save_R @= R
-        self.save_dete @= vol
-        self.save_wilson @= wilson
-        self.save_BB @= bigB
-        self.save_riemsq @= riemsq
-        self.save_riccisq @= riccisq
-        # del R, Rsq, vol, eslash, dete, meas, wilson, Hmunu, bigB, smallB
+        if save:
+            self.save_action @= action
+            self.save_Q @= Q
+            self.save_R @= R
+            self.save_dete @= vol
+            self.save_wilson @= wilson
+            self.save_BB @= bigB
+            self.save_riemsq @= riemsq
+            self.save_riccisq @= riccisq
         return action
 
 
