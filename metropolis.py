@@ -60,7 +60,11 @@ class Simulation:
         self.e = g.load(path + "tetrad/tetrad-fields_c" + str(swp_number))
         self.einc = g.load(path + "einc/einc_c" + str(swp_number))
         self.Uinc = g.load(path + "Uinc/Uinc_c" + str(swp_number))
-
+        self.swp_count = swp_number
+        self.rng = g.random(str(swp_number))
+        g.message(f"Loaded config, sweep number = {self.swp_count}")
+        g.message(f"Using random seed = {self.swp_count}")
+        g.message(f"einc = {self.einc}, Uinc = {self.Uinc}")
 
 
     def save_config(self, path):
@@ -779,33 +783,35 @@ class Simulation:
         self.update_links()
         self.update_tetrads()
 
-    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., measurement_rate=1, uacpt_rate=0.5, eacpt_rate=0.5, save=True):
+    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., 
+            measurement_rate=1, uacpt_rate=0.5, eacpt_rate=0.5, du_step=0.001, de_step=0.0001, save=True):
         """ Runs the Metropolis algorithm."""
         self.target_u_acpt = uacpt_rate
         self.target_e_acpt = eacpt_rate
         self.meas_rate = measurement_rate
 
+        self.kappa = np.float64(kappa)
+        self.lam = np.float64(lam)
+        self.K = np.float64(K)
+        self.alpha = np.float64(alpha)
+        self.beta = np.float64(beta)
+        self.gamma = np.float64(gamma)
+        self.omega = np.float64(omega)
+        # self.zeta = np.float64(zeta)
+        self.eta = np.float64(eta)
+        self.du_step = du_step
+        self.de_step = de_step
+        g.message(f"Sweep count = {self.swp_count}, L = {self.L}")
+        g.message(f"kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}")
+        g.message(f"beta = {self.beta}, gamma = {self.gamma}, K = {self.K}")
+        g.message(f"omega = {self.omega}, eta = {self.eta}, gamma = {self.gamma}")
+
         if self.load:
             pass
         else:
             self.swp_count = 0
-            self.kappa = np.float64(kappa)
-            self.lam = np.float64(lam)
-            self.K = np.float64(K)
-            self.alpha = np.float64(alpha)
-            self.beta = np.float64(beta)
-            self.gamma = np.float64(gamma)
-            self.omega = np.float64(omega)
-            # self.zeta = np.float64(zeta)
-            self.eta = np.float64(eta)
             self.Uinc = 0.1
             self.einc = 0.01
-            self.du_step = 0.001
-            self.de_step = 0.0001
-            g.message(f"Sweep count = {self.swp_count}, L = {self.L}")
-            g.message(f"kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}")
-            g.message(f"beta = {self.beta}, gamma = {self.gamma}, K = {self.K}")
-            g.message(f"omega = {self.omega}, eta = {self.eta}, gamma = {self.gamma}")
             if save:
                 self.save_config(path)
         # self.check_R()
