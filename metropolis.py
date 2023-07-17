@@ -13,7 +13,7 @@ import h5py
 
 class Simulation:
 
-    def __init__(self, L):
+    def __init__(self, L, cold_start=False):
         """
         Initialize a Metropolis simulation.
         """
@@ -27,8 +27,8 @@ class Simulation:
         g.message(self.grid)
         # self.rng = g.random("seed string") # initialize random seed
         self.rng = g.random("0") # initialize random seed
-        # make the Us
-        self.make_Us()
+        # make the Us                
+        self.make_Us(cold=cold_start)
 
         # make the tetrads
         self.e = [[self.rng.normal(g.real(self.grid)) for a in range(4)] for mu in range(4)]
@@ -132,7 +132,7 @@ class Simulation:
                     os.mkdir(path + "gauge")
                 except FileExistsError:
                     pass
-            # print("R", g.eval(g.sum(self.save_R).real * (1./self.L**4)))
+                # print("R", g.eval(g.sum(self.save_R).real * (1./self.L**4)))
             g.save(path + "einc/einc_c" + str(self.swp_count), self.einc)
             g.save(path + "Uinc/Uinc_c" + str(self.swp_count), self.Uinc)
             g.save(path + "gauge/gauge-fields_c" + str(self.swp_count), self.U)
@@ -235,9 +235,9 @@ class Simulation:
         for a in range(0, 4):
             for b in range(0, 4):
                 lnV += Ji2[a][b] * self.rng.normal(g.complex(self.grid), sigma=scale)
-        V = g.mspin(self.grid)
-        V = g.matrix.exp(lnV)
-        del lnV, Ji2
+                V = g.mspin(self.grid)
+                V = g.matrix.exp(lnV)
+                del lnV, Ji2
         return V
 
     # def build_Bmunu_squared(self,):
@@ -408,7 +408,7 @@ class Simulation:
             BB += g.trace((3./16.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] -
                                                             einvslash[nu] * Gup[mu][rho]))
             riccisq += g.trace((1./32.) * eslash[rho] * Gmunu * (Gup[mu][rho] * einvslash[nu] +
-                                                            einvslash[nu] * Gup[mu][rho]))
+                                                                 einvslash[nu] * Gup[mu][rho]))
             
         BB -= (3./8.) * trace_GmuGmu
         riccisq -= (1./16) * trace_GmuGmu
@@ -459,8 +459,8 @@ class Simulation:
             Q += g.trace(g.gamma[5] * Gmunu * Grhosig * val)
             R += g.trace(g.gamma[5] * Gmunu * eslash[rho] * eslash[sig] * val)
             vol += g.trace(g.gamma[5] * eslash[mu] * eslash[nu] * eslash[rho] * eslash[sig] * val)
-        vol *= (1. / (4*4*3*2))
-        # absvol @= g.component.abs(vol)
+            vol *= (1. / (4*4*3*2))
+            # absvol @= g.component.abs(vol)
         R *= (g.component.inv(vol) * (1./16))
         Q *= (1./(32 * np.pi**2))
         return (g.eval(R), g.eval(vol), g.eval(Q))
@@ -669,27 +669,29 @@ class Simulation:
     #         want += B
     #     return want
 
-    def make_Us(self,):
+    def make_Us(self, cold=False):
         """ Make random link variables in SU(2)xSU(2)."""
         # Mike's links
-        # make log U
-        lnU = [g.mspin(self.grid) for mu in range(4)]
-        for i in range(4):
-            lnU[i][:] = 0
-        # gamma commutators
-        Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() -
-                  g.gamma[b].tensor()*g.gamma[a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
-        omega = [ [ [ self.rng.normal(g.complex(self.grid)) for b in range(0,4)]
-                    for a in range(0,4) ] for mu in range(0, 4) ]
-        for mu in range(0, 4):
-            for a in range(0, 4):
-                for b in range(0, 4):
-                    lnU[mu] += Ji2[a][b]*omega[mu][a][b]
-        # the Us
-        self.U = [ g.mspin(self.grid) for mu in range(0,4) ]
-        for mu in range(0,4):
-            self.U[mu] = g.matrix.exp(lnU[mu])
-        del lnU, Ji2, omega
+        if cold:
+            self.U = [ g.identity(g.mspin(self.grid)) for mu in range(0,4) ]
+        else:
+            # make log U
+            lnU = [g.mspin(self.grid) for mu in range(4)]
+            for i in range(4):
+                lnU[i][:] = 0
+                # gamma commutators
+            Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() -
+                      g.gamma[b].tensor()*g.gamma[a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
+            omega = [ [ [ self.rng.normal(g.complex(self.grid)) for b in range(0,4)]
+                        for a in range(0,4) ] for mu in range(0, 4) ]
+            for mu in range(0, 4):
+                for a in range(0, 4):
+                    for b in range(0, 4):
+                        lnU[mu] += Ji2[a][b]*omega[mu][a][b]
+                        # the Us
+            self.U = [ g.mspin(self.grid) for mu in range(0,4) ]
+            for mu in range(0,4):
+                self.U[mu] = g.matrix.exp(lnU[mu])
 
 
 
