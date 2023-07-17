@@ -30,7 +30,7 @@ if __name__ == "__main__":
     # initialize lattice
     lattice = Simulation(L)
     # lattice.load_config(fields_path="/wclustre/lqcd_gpt/new_gauge_configs/Spin4_k1.0_l1.0_a1.0_b0.0_g0.0_K2.0_o1.0_e1.0_L12.hdf5", swp_number=142)
-    lattice.run(path="/wclustre/lqcd_gpt/k1L4/", kappa=kappa, lam=lam, alpha=alpha, beta=beta, gamma=gamma, omega=omega, eta=eta, K=K, measurement_rate=1)
+    lattice.run(path="/wclustre/lqcd_gpt/k1L4_2/", kappa=kappa, lam=lam, alpha=alpha, beta=beta, gamma=gamma, omega=omega, eta=eta, K=K, measurement_rate=1)
     
             
             

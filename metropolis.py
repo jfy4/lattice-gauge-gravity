@@ -265,7 +265,7 @@ class Simulation:
 
     def symmetric_clover(self, U, mu, nu):
         """ Create the symmetric clover, H, from the notes."""
-        # assert mu != nu
+        assert mu != nu
         # v = staple_up + staple_down
         v = g.eval(
             g.cshift(U[nu], mu, 1) * g.adj(g.cshift(U[mu], nu, 1)) * g.adj(U[nu])
@@ -436,8 +436,8 @@ class Simulation:
         wilson = g.real(self.grid)
         wilson[:] = 0
         for mu, nu in it.product(range(4), repeat=2):
-            # if mu == nu:
-            #     continue
+            if mu == nu:
+                continue
             Hmunu = self.symmetric_clover(self.U, mu, nu)
             wilson += g.trace(g.identity(Hmunu) - Hmunu)
         return g.eval(wilson)
