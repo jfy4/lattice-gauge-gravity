@@ -10,7 +10,6 @@ import numpy as np
 import copy
 import h5py
 
-
 class Simulation:
 
     def __init__(self, L, cold_start=False):
@@ -239,9 +238,9 @@ class Simulation:
         for a in range(0, 4):
             for b in range(0, 4):
                 lnV += Ji2[a][b] * self.rng.normal(g.complex(self.grid), sigma=scale)
-                V = g.mspin(self.grid)
-                V = g.matrix.exp(lnV)
-                del lnV, Ji2
+        V = g.mspin(self.grid)
+        V = g.matrix.exp(lnV)
+        # del lnV, Ji2
         return V
 
     # def build_Bmunu_squared(self,):
