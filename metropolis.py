@@ -676,23 +676,23 @@ class Simulation:
         """ Make random link variables in SU(2)xSU(2)."""
         # Mike's links
         if cold:
-            self.U = [ g.identity(g.mspin(self.grid)) for mu in range(0,4) ]
+            self.U = [g.identity(g.mspin(self.grid)) for mu in range(0,4)]
         else:
             # make log U
             lnU = [g.mspin(self.grid) for mu in range(4)]
             for i in range(4):
                 lnU[i][:] = 0
                 # gamma commutators
-            Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() -
+            Ji2 = [[(g.gamma[a].tensor()*g.gamma[b].tensor() -
                       g.gamma[b].tensor()*g.gamma[a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
-            omega = [ [ [ self.rng.normal(g.complex(self.grid)) for b in range(0,4)]
+            omega = [[[self.rng.normal(g.complex(self.grid)) for b in range(0,4)]
                         for a in range(0,4) ] for mu in range(0, 4) ]
             for mu in range(0, 4):
                 for a in range(0, 4):
                     for b in range(0, 4):
                         lnU[mu] += Ji2[a][b]*omega[mu][a][b]
                         # the Us
-            self.U = [ g.mspin(self.grid) for mu in range(0,4) ]
+            self.U = [g.mspin(self.grid) for mu in range(0,4) ]
             for mu in range(0,4):
                 self.U[mu] = g.matrix.exp(lnU[mu])
 
