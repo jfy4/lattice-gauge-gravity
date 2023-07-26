@@ -802,7 +802,6 @@ class Simulation:
         self.eta = np.float64(eta)
         self.du_step = du_step
         self.de_step = de_step
-        g.message(f"Sweep count = {self.swp_count}, L = {self.L}")
         g.message(f"kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}")
         g.message(f"beta = {self.beta}, gamma = {self.gamma}, K = {self.K}")
         g.message(f"omega = {self.omega}, eta = {self.eta}, gamma = {self.gamma}")
@@ -811,6 +810,7 @@ class Simulation:
             pass
         else:
             self.swp_count = 0
+            g.message(f"Sweep count = {self.swp_count}, L = {self.L}")
             self.Uinc = 0.1
             self.einc = 0.01
             if save:
