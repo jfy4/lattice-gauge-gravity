@@ -787,11 +787,12 @@ class Simulation:
 
 
 
-    def update_fields(self,):
+    def update_fields(self, link_update=False):
         """ Update the links and the tetrads."""
-        self.update_links()
-        for it in range(self.num_tet_updates):
-            self.update_tetrads()
+        if link_update:
+            self.update_links()
+        self.update_tetrads()
+        
 
     def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., 
             measurement_rate=1, uacpt_rate=0.5, eacpt_rate=0.5, du_step=0.001, de_step=0.0001, save=True):
@@ -862,10 +863,17 @@ class Simulation:
         g.message(f"Metropolis {self.swp_count} has link step = {self.Uinc}, and tetrad step = {self.einc}")
         # self.check = g.real(self.grid)
         # self.check[:] = 0
-        for coord in it.product(range(2), repeat=4):
-            shift0, shift1, shift2, shift3 = coord
-            self.mask = g.cshift(g.cshift(g.cshift(g.cshift(self.starting_ones, 0, shift0), 1, shift1), 2, shift2), 3, shift3)
-            self.update_fields()
+        for tet_update in range(self.num_tet_updates):
+            for coord in it.product(range(2), repeat=4):
+                shift0, shift1, shift2, shift3 = coord
+                self.mask = g.cshift(g.cshift(g.cshift(g.cshift(self.starting_ones,
+                                                                0, shift0), 1,
+                                                       shift1), 2, shift2), 3,
+                                     shift3)
+                if tet_update == 0:
+                    self.update_fields(link_update=True)
+                else:
+                    self.update_fields()
             # self.check += self.mask
             # g.message(np.sum(self.check[:]), 4**4)
             # assert False
