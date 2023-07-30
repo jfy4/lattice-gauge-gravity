@@ -12,9 +12,17 @@ import h5py
 
 class Simulation:
 
-    def __init__(self, L, cold_start=False):
+    def __init__(self, L, cold_start=False, number_of_tet_updates=1):
         """
         Initialize a Metropolis simulation.
+
+        Parameters
+        ----------
+        L                     : The linear dimension of the lattice
+        cold_start            : Whether to start the gauge fields randomly
+                                or as the identity.
+        number_of_tet_updates : The number of updates to perform
+                                on the tetrads between link updates.
         """
         self.L = L # symmetric lattice
         self.grid = g.grid([self.L]*4, g.double) # make the lattice
@@ -23,6 +31,7 @@ class Simulation:
         self.ones = g.real(self.grid)
         self.ones[:] = 1.
         self.load = False
+        self.num_tet_updates = number_of_tet_updates
         g.message(self.grid)
         # self.rng = g.random("seed string") # initialize random seed
         self.rng = g.random("0") # initialize random seed
@@ -781,7 +790,8 @@ class Simulation:
     def update_fields(self,):
         """ Update the links and the tetrads."""
         self.update_links()
-        self.update_tetrads()
+        for it in range(self.num_tet_updates):
+            self.update_tetrads()
 
     def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., 
             measurement_rate=1, uacpt_rate=0.5, eacpt_rate=0.5, du_step=0.001, de_step=0.0001, save=True):
