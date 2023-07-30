@@ -864,12 +864,15 @@ class Simulation:
         # self.check = g.real(self.grid)
         # self.check[:] = 0
         for tet_update in range(self.num_tet_updates):
+            g.message("tetrad update " + str(tet_update+1) + " of "
+                      + str(self.num_tet_updates))
             for coord in it.product(range(2), repeat=4):
                 shift0, shift1, shift2, shift3 = coord
                 self.mask = g.cshift(g.cshift(g.cshift(g.cshift(self.starting_ones,
-                                                                0, shift0), 1,
-                                                       shift1), 2, shift2), 3,
-                                     shift3)
+                                                                0, shift0),
+                                                       1, shift1),
+                                              2, shift2),
+                                     3, shift3)
                 if tet_update == 0:
                     self.update_fields(link_update=True)
                 else:
