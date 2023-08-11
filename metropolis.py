@@ -240,8 +240,8 @@ class Simulation:
 
     def random_links(self, scale=1.0):
         """ Make a lattice of random link variables."""
-        Ji2 = [ [(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
-                  [a].tensor())/8 for b in range(0,4) ] for a in range(0,4) ]
+        Ji2 = [[(g.gamma[a].tensor()*g.gamma[b].tensor() - g.gamma[b].tensor()*g.gamma
+                  [a].tensor())/8 for b in range(0,4)] for a in range(0,4)]
         lnV = g.mspin(self.grid)
         lnV[:] = 0
         for a in range(0, 4):
