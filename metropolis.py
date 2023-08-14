@@ -18,8 +18,8 @@ class Simulation:
         """
         self.L = L # symmetric lattice
         self.grid = g.grid([self.L]*4, g.double) # make the lattice
-        self.link_acpt = [0]*16 # this is 16 for the 16 different masks
-        self.tet_acpt = [0]*16 # same
+        self.link_acpt = [0]*256 # this is 16 for the 16 different masks
+        self.tet_acpt = [0] # same
         self.ones = g.real(self.grid)
         self.ones[:] = 1.
         self.load = False
@@ -191,7 +191,7 @@ class Simulation:
         """
         self.starting_ones =  g.real(self.grid)
         self.starting_ones[:] = 0
-        nonzero_indices = range(0, self.L, 2)
+        nonzero_indices = range(0, self.L, 4)
         for i in it.product(nonzero_indices, repeat=4):
             id0, id1, id2, id3 = i
             self.starting_ones[id0, id1, id2, id3] = 1
@@ -714,7 +714,27 @@ class Simulation:
         # print("proposed, original", self.U[mu][:][234], lo[mu][:][234]) # 
         action_prime = self.compute_action()
         # print("action prime link", g.eval(action_prime)[:][234])
-        prob = g.component.exp(action - action_prime)
+        delta_s = g.eval(action - action_prime)
+        summed_difference = g.real(self.grid)
+        summed_difference[:] = 0
+        summed_difference += delta_s
+        for direc in range(4):
+            summed_difference += g.cshift(delta_s, direc, 1)
+            summed_difference += g.cshift(delta_s, direc, -1)
+        planes = [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]]
+        for plane in planes:
+            step1 = plane[0]
+            step2 = plane[1]
+            summed_difference += g.cshift(g.cshift(delta_s, step1, 1),
+                                          step2, 1)
+            summed_difference += g.cshift(g.cshift(delta_s, step1, 1),
+                                          step2, -1)
+            summed_difference += g.cshift(g.cshift(delta_s, step1, -1),
+                                          step2, 1)
+            summed_difference += g.cshift(g.cshift(delta_s, step1, -1),
+                                          step2, -1)
+        prob = g.component.exp(summed_difference)
+        # prob = g.component.exp(action - action_prime)
         # print("prob link", prob[:][234])
         prob @= g.where(prob > self.ones, self.ones, prob)
         rn = g.lattice(prob)
@@ -746,7 +766,7 @@ class Simulation:
                 ii_eye = g.lattice(self.e[mu][a])
                 ii_eye[:] = 0
                 ii = self.random_shift(scale=self.einc)
-                ii = g.where(self.mask, ii, ii_eye)
+                # ii = g.where(self.mask, ii, ii_eye)
                 self.e[mu][a] = g.eval(ii + self.e[mu][a])
         # print(eo[0][0][0,0,0,0], self.e[0][0][0,0,0,0])
         # ep = g.eval(ii + eo)
@@ -764,7 +784,7 @@ class Simulation:
         # print("random", rn[:][0])
         accept = rn < prob
         # print("accept", accept[:][0])
-        accept *= self.mask
+        # accept *= self.mask
         self.tet_acpt.pop()
         # acpt_amount = np.real(np.sum(accept[:]) / np.sum(self.starting_ones[:]))
         acpt_amount = g.sum(accept)
@@ -833,7 +853,7 @@ class Simulation:
         # link_acceptance = np.real(np.mean(self.link_acpt))
         # tet_acceptance = np.real(np.mean(self.tet_acpt))
         link_acceptance = np.sum(self.link_acpt).real * (1. / self.L**4)
-        tet_acceptance = np.sum(self.tet_acpt).real * (1. / self.L**4)
+        tet_acceptance = np.sum(self.tet_acpt).real * (1. / (self.L**4))
         if abs(link_acceptance - self.target_u_acpt) < 0.02:
             pass
         elif link_acceptance < self.target_u_acpt:
@@ -852,10 +872,12 @@ class Simulation:
         g.message(f"Metropolis {self.swp_count} has link step = {self.Uinc}, and tetrad step = {self.einc}")
         # self.check = g.real(self.grid)
         # self.check[:] = 0
-        for coord in it.product(range(2), repeat=4):
+        for coord in it.product(range(4), repeat=4):
             shift0, shift1, shift2, shift3 = coord
             self.mask = g.cshift(g.cshift(g.cshift(g.cshift(self.starting_ones, 0, shift0), 1, shift1), 2, shift2), 3, shift3)
-            self.update_fields()
+            # self.update_fields()
+            self.update_links()
+        self.update_tetrads()
             # self.check += self.mask
             # g.message(np.sum(self.check[:]), 4**4)
             # assert False
