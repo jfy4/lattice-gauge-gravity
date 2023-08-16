@@ -34,8 +34,8 @@ class Simulation:
         # make the checkerboard mask
         self.make_initial_mask()
 
-        self.save_BB = g.real(self.grid)
-        self.save_BB[:] = 0
+        # self.save_BB = g.real(self.grid)
+        # self.save_BB[:] = 0
         self.save_R = g.real(self.grid)
         self.save_R[:] = 0
         self.save_dete = g.real(self.grid)
@@ -46,10 +46,10 @@ class Simulation:
         self.save_wilson[:] = 0
         self.save_action = g.real(self.grid)
         self.save_action[:] = 0
-        self.save_riemsq = g.real(self.grid)
-        self.save_riemsq[:] = 0
-        self.save_riccisq = g.real(self.grid)
-        self.save_riccisq[:] = 0
+        # self.save_riemsq = g.real(self.grid)
+        # self.save_riemsq[:] = 0
+        # self.save_riccisq = g.real(self.grid)
+        # self.save_riccisq[:] = 0
 
 
     def load_config(self, path, swp_number):
@@ -75,10 +75,10 @@ class Simulation:
                 f.write("kappa   = " + str(self.kappa) + "\n")
                 f.write("lambda  = " + str(self.lam) + "\n")
                 f.write("alpha   = " + str(self.alpha) + "\n")
-                f.write("beta    = " + str(self.beta) + "\n")
+                # f.write("beta    = " + str(self.beta) + "\n")
                 f.write("K       = " + str(self.K) + "\n")
                 f.write("omega   = " + str(self.omega) + "\n")
-                f.write("eta     = " + str(self.eta) + "\n")
+                # f.write("eta     = " + str(self.eta) + "\n")
                 f.write("gamma   = " + str(self.gamma) + "\n")
                 f.write("L       = " + str(self.L) + "\n")
                 f.write("de_step = " + str(self.de_step) + "\n")
@@ -87,22 +87,22 @@ class Simulation:
                 f.write("Uacpt   = " + str(self.target_u_acpt) + "\n")
                 f.write("eacpt   = " + str(self.target_e_acpt) + "\n")
             if self.grid.processor == 0:
-                try:
-                    os.mkdir(path + "riccisq")
-                except FileExistsError:
-                    pass
-                try:
-                    os.mkdir(path + "riemsq")
-                except FileExistsError:
-                    pass
+                # try:
+                #     os.mkdir(path + "riccisq")
+                # except FileExistsError:
+                #     pass
+                # try:
+                #     os.mkdir(path + "riemsq")
+                # except FileExistsError:
+                #     pass
                 try:
                     os.mkdir(path + "action")
                 except FileExistsError:
                     pass
-                try:
-                    os.mkdir(path + "BB")
-                except FileExistsError:
-                    pass
+                # try:
+                #     os.mkdir(path + "BB")
+                # except FileExistsError:
+                #     pass
                 try:
                     os.mkdir(path + "wilson")
                 except FileExistsError:
@@ -144,10 +144,10 @@ class Simulation:
             g.save(path + "dete/dete_c" + str(self.swp_count), self.save_dete)
             g.save(path + "Q/Q_c" + str(self.swp_count), self.save_Q)
             g.save(path + "wilson/wilson_c" + str(self.swp_count), self.save_wilson)
-            g.save(path + "riemsq/riemsq_c" + str(self.swp_count), self.save_riemsq)
+            # g.save(path + "riemsq/riemsq_c" + str(self.swp_count), self.save_riemsq)
             g.save(path + "action/action_c" + str(self.swp_count), self.save_action)
-            g.save(path + "BB/BB_c" + str(self.swp_count), self.save_BB)
-            g.save(path + "riccisq/riccisq_c" + str(self.swp_count), self.save_riccisq)
+            # g.save(path + "BB/BB_c" + str(self.swp_count), self.save_BB)
+            # g.save(path + "riccisq/riccisq_c" + str(self.swp_count), self.save_riccisq)
         else:
             # print("R", g.eval(g.sum(self.save_R).real * (1./self.L**4)))
             g.save(path + "einc/einc_c" + str(self.swp_count), self.einc)
@@ -158,10 +158,10 @@ class Simulation:
             g.save(path + "dete/dete_c" + str(self.swp_count), self.save_dete)
             g.save(path + "Q/Q_c" + str(self.swp_count), self.save_Q)
             g.save(path + "wilson/wilson_c" + str(self.swp_count), self.save_wilson)
-            g.save(path + "riemsq/riemsq_c" + str(self.swp_count), self.save_riemsq)
+            # g.save(path + "riemsq/riemsq_c" + str(self.swp_count), self.save_riemsq)
             g.save(path + "action/action_c" + str(self.swp_count), self.save_action)
-            g.save(path + "BB/BB_c" + str(self.swp_count), self.save_BB)
-            g.save(path + "riccisq/riccisq_c" + str(self.swp_count), self.save_riccisq)
+            # g.save(path + "BB/BB_c" + str(self.swp_count), self.save_BB)
+            # g.save(path + "riccisq/riccisq_c" + str(self.swp_count), self.save_riccisq)
 
 
 
@@ -472,28 +472,36 @@ class Simulation:
         Rsq = g.real(self.grid)
         Rsq[:] = 0
         wilson = self.make_wilson()
-        bigB, riemsq, riccisq = self.make_hard_terms()
+        # bigB, riemsq, riccisq = self.make_hard_terms()
         R, vol, Q = self.make_RlamQ()
         Rsq += R * R # g.component.pow(2)(R)
         absdete = g.component.abs(vol)
         meas = g.component.log(absdete)
         action = (absdete * (self.lam * g.identity(absdete)
-                             -(self.kappa / 2) * R
+                             - (self.kappa / 2) * R
                              + (self.alpha * Rsq)
                              + (self.omega * wilson)
-                             + (self.eta * bigB))
+                             )
                   - (self.K * meas)
                   - (self.gamma * Q)
                   )
+        # action = (absdete * (self.lam * g.identity(absdete)
+        #                      - (self.kappa / 2) * R
+        #                      + (self.alpha * Rsq)
+        #                      + (self.omega * wilson)
+        #                      + (self.eta * bigB))
+        #           - (self.K * meas)
+        #           - (self.gamma * Q)
+        #           )
         if save:
             self.save_action @= action
             self.save_Q @= Q
             self.save_R @= R
             self.save_dete @= vol
             self.save_wilson @= wilson
-            self.save_BB @= bigB
-            self.save_riemsq @= riemsq
-            self.save_riccisq @= riccisq
+            # self.save_BB @= bigB
+            # self.save_riemsq @= riemsq
+            # self.save_riccisq @= riccisq
         return action
 
 
@@ -798,13 +806,14 @@ class Simulation:
 
 
 
-    def update_fields(self,):
-        """ Update the links and the tetrads."""
-        self.update_links()
-        self.update_tetrads()
+    # def update_fields(self,):
+    #     """ Update the links and the tetrads."""
+    #     self.update_links()
+    #     self.update_tetrads()
 
-    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0., K=1., omega=1., eta=1., 
-            measurement_rate=1, uacpt_rate=0.5, eacpt_rate=0.5, du_step=0.001, de_step=0.0001, save=True):
+    def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0.,
+            K=0., omega=0., eta=0., measurement_rate=1, uacpt_rate=0.5,
+            eacpt_rate=0.5, du_step=0.001, de_step=0.001, save=True):
         """ Runs the Metropolis algorithm."""
         self.target_u_acpt = uacpt_rate
         self.target_e_acpt = eacpt_rate
@@ -814,16 +823,18 @@ class Simulation:
         self.lam = np.float64(lam)
         self.K = np.float64(K)
         self.alpha = np.float64(alpha)
-        self.beta = np.float64(beta)
+        # self.beta = np.float64(beta)
         self.gamma = np.float64(gamma)
         self.omega = np.float64(omega)
         # self.zeta = np.float64(zeta)
-        self.eta = np.float64(eta)
+        # self.eta = np.float64(eta)
         self.du_step = du_step
         self.de_step = de_step
         g.message(f"kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}")
-        g.message(f"beta = {self.beta}, gamma = {self.gamma}, K = {self.K}")
-        g.message(f"omega = {self.omega}, eta = {self.eta}, gamma = {self.gamma}")
+        # g.message(f"beta = {self.beta}, gamma = {self.gamma}, K = {self.K}")
+        g.message(f"gamma = {self.gamma}, K = {self.K}")
+        g.message(f"omega = {self.omega}, gamma = {self.gamma}")
+        # g.message(f"omega = {self.omega}, eta = {self.eta}, gamma = {self.gamma}")
 
         if self.load:
             pass
@@ -831,7 +842,7 @@ class Simulation:
             self.swp_count = 0
             g.message(f"Sweep count = {self.swp_count}, L = {self.L}")
             self.Uinc = 0.1
-            self.einc = 0.01
+            self.einc = 0.1
             if save:
                 self.save_config(path)
         # self.check_R()
