@@ -75,10 +75,10 @@ class Simulation:
                 f.write("kappa   = " + str(self.kappa) + "\n")
                 f.write("lambda  = " + str(self.lam) + "\n")
                 f.write("alpha   = " + str(self.alpha) + "\n")
-                # f.write("beta    = " + str(self.beta) + "\n")
+                f.write("beta    = " + str(self.beta) + "\n")
                 f.write("K       = " + str(self.K) + "\n")
                 f.write("omega   = " + str(self.omega) + "\n")
-                # f.write("eta     = " + str(self.eta) + "\n")
+                f.write("eta     = " + str(self.eta) + "\n")
                 f.write("gamma   = " + str(self.gamma) + "\n")
                 f.write("L       = " + str(self.L) + "\n")
                 f.write("de_step = " + str(self.de_step) + "\n")
@@ -135,7 +135,6 @@ class Simulation:
                     os.mkdir(path + "gauge")
                 except FileExistsError:
                     pass
-                # print("R", g.eval(g.sum(self.save_R).real * (1./self.L**4)))
             g.save(path + "einc/einc_c" + str(self.swp_count), self.einc)
             g.save(path + "Uinc/Uinc_c" + str(self.swp_count), self.Uinc)
             g.save(path + "gauge/gauge-fields_c" + str(self.swp_count), self.U)
@@ -149,7 +148,6 @@ class Simulation:
             # g.save(path + "BB/BB_c" + str(self.swp_count), self.save_BB)
             # g.save(path + "riccisq/riccisq_c" + str(self.swp_count), self.save_riccisq)
         else:
-            # print("R", g.eval(g.sum(self.save_R).real * (1./self.L**4)))
             g.save(path + "einc/einc_c" + str(self.swp_count), self.einc)
             g.save(path + "Uinc/Uinc_c" + str(self.swp_count), self.Uinc)
             g.save(path + "gauge/gauge-fields_c" + str(self.swp_count), self.U)
@@ -823,18 +821,18 @@ class Simulation:
         self.lam = np.float64(lam)
         self.K = np.float64(K)
         self.alpha = np.float64(alpha)
-        # self.beta = np.float64(beta)
+        self.beta = np.float64(beta)
         self.gamma = np.float64(gamma)
         self.omega = np.float64(omega)
         # self.zeta = np.float64(zeta)
-        # self.eta = np.float64(eta)
+        self.eta = np.float64(eta)
         self.du_step = du_step
         self.de_step = de_step
         g.message(f"kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}")
-        # g.message(f"beta = {self.beta}, gamma = {self.gamma}, K = {self.K}")
-        g.message(f"gamma = {self.gamma}, K = {self.K}")
-        g.message(f"omega = {self.omega}, gamma = {self.gamma}")
-        # g.message(f"omega = {self.omega}, eta = {self.eta}, gamma = {self.gamma}")
+        g.message(f"beta = {self.beta}, gamma = {self.gamma}, K = {self.K}")
+        # g.message(f"gamma = {self.gamma}, K = {self.K}")
+        # g.message(f"omega = {self.omega}, gamma = {self.gamma}")
+        g.message(f"omega = {self.omega}, eta = {self.eta}, gamma = {self.gamma}")
 
         if self.load:
             pass
