@@ -706,6 +706,7 @@ class Simulation:
     def update_links(self,):
         """ Metropolis update for the link variables."""
         action = self.compute_action()
+        # g.message("computed original action")
         # print("action link", g.eval(action)[:][234])
         # print("mask", self.mask[:][234])
         lo = [g.lattice(self.U[0]) for mu in range(4)]
@@ -719,6 +720,7 @@ class Simulation:
             self.U[mu] = g.eval(V * self.U[mu])
         # print("proposed, original", self.U[mu][:][234], lo[mu][:][234]) # 
         action_prime = self.compute_action()
+        # g.message("computed proposed action")
         # print("action prime link", g.eval(action_prime)[:][234])
         delta_s = g.eval(action - action_prime)
         summed_difference = g.real(self.grid)
@@ -762,6 +764,7 @@ class Simulation:
     def update_tetrads(self,):
         """ Metropolis update for the tetrad variables."""
         action = self.compute_action()
+        # g.message("computed original action")
         # print(self.e[0][0][:][0])
         # print("action tet", g.eval(action)[:][234])
         # print(eo[0][0][0,0,0,0], self.e[0][0][0,0,0,0])
@@ -779,6 +782,7 @@ class Simulation:
         # ep = self.e.copy()
         # print(eo[0][0][:])
         action_prime = self.compute_action()
+        # g.message("computed proposed action")
         # print(self.e[0][0][:][0])
         # print("action prime tet", g.eval(action_prime)[:][234])
         prob = g.eval(g.component.exp(action - action_prime))
@@ -798,7 +802,7 @@ class Simulation:
         for mu in range(4):
             for a in range(4):
                 # self.e[mu][a] @= g.where(accept, ep[mu][a], eo[mu][a])
-                self.e[mu][a] @= g.where(accept, self.e[mu][a], eo[mu][a])
+                self.e[mu][a] @= g.where(accept, self.e[mu][a], eo[mu][a])        
         # del action, ii_eye, ii, eo, ep, action_prime, prob, rn, accept
 
 
@@ -863,8 +867,6 @@ class Simulation:
         R_2x1 = g.qcd.gauge.rectangle(self.U, 2, 1)
         the_det = g.sum(det(self.e)).real * (1. / self.L**4)
         act = g.sum(g.eval(self.compute_action())).real * (1. / self.L**4)
-        # link_acceptance = np.real(np.mean(self.link_acpt))
-        # tet_acceptance = np.real(np.mean(self.tet_acpt))
         link_acceptance = np.sum(self.link_acpt).real * (1. / self.L**4)
         tet_acceptance = np.sum(self.tet_acpt).real * (1. / (self.L**4))
         if abs(link_acceptance - self.target_u_acpt) < 0.02:
@@ -885,13 +887,19 @@ class Simulation:
         g.message(f"Metropolis {self.swp_count} has link step = {self.Uinc}, and tetrad step = {self.einc}")
         # self.check = g.real(self.grid)
         # self.check[:] = 0
+        checkerboard_step = 0
         for coord in it.product(range(4), repeat=4):
+            g.message(f"checkerboard step {checkerboard_step+1} of 256")
             shift0, shift1, shift2, shift3 = coord
             self.mask = g.cshift(g.cshift(g.cshift(g.cshift(self.starting_ones, 0, shift0), 1, shift1), 2, shift2), 3, shift3)
             # self.update_fields()
             self.update_links()
+            checkerboard_step += 1
+        g.message("updated links")    
         for hit in range(self.multi_hit):
+            g.message(f"hit {hit+1} of {self.multi_hit}")
             self.update_tetrads()
+        g.message("updated tetrads")
         # self.check += self.mask
         # g.message(np.sum(self.check[:]), 4**4)
         # assert False
