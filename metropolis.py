@@ -811,7 +811,8 @@ class Simulation:
 
     def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0.,
             K=0., omega=0., eta=0., measurement_rate=1, uacpt_rate=0.5,
-            eacpt_rate=0.5, du_step=0.001, de_step=0.001, save=True):
+            eacpt_rate=0.5, du_step=0.001, de_step=0.001, save=True,
+            tet_multi_hit=2):
         """ Runs the Metropolis algorithm."""
         self.target_u_acpt = uacpt_rate
         self.target_e_acpt = eacpt_rate
@@ -826,8 +827,11 @@ class Simulation:
         self.omega = np.float64(omega)
         # self.zeta = np.float64(zeta)
         self.eta = np.float64(eta)
+        
         self.du_step = du_step
         self.de_step = de_step
+        self.multi_hit = tet_multi_hit
+
         g.message(f"kappa = {self.kappa}, lambda = {self.lam}, alpha = {self.alpha}")
         g.message(f"beta = {self.beta}, gamma = {self.gamma}, K = {self.K}")
         # g.message(f"gamma = {self.gamma}, K = {self.K}")
@@ -886,10 +890,11 @@ class Simulation:
             self.mask = g.cshift(g.cshift(g.cshift(g.cshift(self.starting_ones, 0, shift0), 1, shift1), 2, shift2), 3, shift3)
             # self.update_fields()
             self.update_links()
-        self.update_tetrads()
-            # self.check += self.mask
-            # g.message(np.sum(self.check[:]), 4**4)
-            # assert False
+        for hit in range(self.multi_hit):
+            self.update_tetrads()
+        # self.check += self.mask
+        # g.message(np.sum(self.check[:]), 4**4)
+        # assert False
 
 
 
