@@ -816,7 +816,7 @@ class Simulation:
     def run(self, path="./", kappa=1., lam=1., alpha=1., beta=0., gamma=0.,
             K=0., omega=0., eta=0., measurement_rate=1, uacpt_rate=0.5,
             eacpt_rate=0.5, du_step=0.001, de_step=0.001, save=True,
-            tet_multi_hit=2):
+            tet_multi_hit=10):
         """ Runs the Metropolis algorithm."""
         self.target_u_acpt = uacpt_rate
         self.target_e_acpt = eacpt_rate
